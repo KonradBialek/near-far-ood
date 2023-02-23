@@ -128,6 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# imgs, saved nets
+# imgs, saved nets, SummaryWriter
 data/
 checkpoints/
+runs/
+features/

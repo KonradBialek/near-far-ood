@@ -1,15 +1,19 @@
+import os
+import shutil
 from typing import List
+from warnings import warn
+import pandas as pd
 from tensorboard import program
 from torch.utils.tensorboard import SummaryWriter
-import os
-import cv2
 import torch
 import torchvision.transforms as transforms
 import torchvision
 from torchsummary import summary
+from cutout import Cutout
+import pandas as pd
+# from cutmix.cutmix import CutMix
 
 BATCH_SIZE = 256
-
 
 def runTensorboard():
     tb = program.TensorBoard()
@@ -19,32 +23,132 @@ def runTensorboard():
     global writer
     writer = SummaryWriter()
 
+def updateWriter(mode: str, loss: float, acc: float, epoch: int):
+    writer.add_scalar(f"loss/{mode}", loss, epoch)
+    writer.add_scalar(f"acc/{mode}", acc, epoch)
 
-def dataloader(dataset_path: str, normalization: List[List[float]]):
-    global trainloader, testloader
-
-    transform = transforms.Compose([
-        transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
-        transforms.RandomCrop(size[0]),
-        transforms.RandomHorizontalFlip(),  
-        transforms.RandomRotation(10),
-        transforms.ToTensor(),
-        transforms.Normalize(normalization),
-    ])
-    transform_val = transforms.Compose([
-        transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
-        transforms.RandomCrop(size[0]),
-        transforms.ToTensor(),
-        transforms.Normalize(normalization),
+def dataloader(dataset: str, normalization: List[List[float]], size: List[int], rgb: bool, train: bool, ID: bool, n_holes: int, length: int):
+    global trainloader, valloader
+    valset = testset = None
+    valloader = testloader = None
+    
+    if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # sieć musi być kolorowa więc dataset tez
+        convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
+    if train:
+        transform = transforms.Compose([
+            transforms.Resize(size, transforms.InterpolationMode.BICUBIC), # for irregular datasets
+            transforms.RandomCrop(size[0], padding=4),
+            transforms.RandomHorizontalFlip(),  
+            transforms.ToTensor(),
+            transforms.Normalize(normalization[0], normalization[1]),
+            Cutout(n_holes=n_holes, length=length),
         ])
+        transform_val = transforms.Compose([
+            transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
+            transforms.ToTensor(),
+            transforms.Normalize(normalization[0], normalization[1]),
+        ])
+    else:
+        if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # todo problem z zmianą kolorów
+            convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
+        # elif not rgb and dataset in ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin']:
+        #     convert = transforms.Grayscale(num_output_channels=1)
+        else:
+            convert = transforms.Lambda(lambda x: x)
 
-    trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
-                                            shuffle=True, num_workers=2)
+        transform = transforms.Compose([
+            transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
+            transforms.ToTensor(),
+            transforms.Normalize(normalization[0], normalization[1]),
+            convert,
+        ])
+        transform_val = transform
 
-    testset = torchvision.datasets.ImageFolder(dataset_path + 'test', transform=transform_val)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE,
-                                            shuffle=False, num_workers=2)
+    if dataset == 'cifar10':
+        trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
+        valset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
+    
+    elif dataset == 'cifar100':
+        trainset = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform)
+        valset = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
+
+    elif dataset == 'dtd':
+        trainset = torchvision.datasets.DTD(root='./data', download=True, transform=transform)
+        valset = torchvision.datasets.DTD(root='./data', split='val', download=True, transform=transform_val)
+        testset = torchvision.datasets.DTD(root='./data', split='test', download=True, transform=transform_val)
+    
+    elif dataset == 'fashionmnist':
+        trainset = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform)
+        valset = torchvision.datasets.FashionMNIST(root='./data', train=False, download=True, transform=transform_val)
+    
+    elif dataset == 'mnist':
+        trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+        valset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_val)
+    
+    elif dataset == 'places365': # todo small=True - 256x256 zamiast high-resolution?
+        trainset = torchvision.datasets.Places365(root='./data', download=True, transform=transform)
+        valset = torchvision.datasets.Places365(root='./data', split='val', download=True, transform=transform_val)
+    
+    elif dataset == 'svhn':
+        trainset = torchvision.datasets.SVHN(root='./data', download=True, transform=transform)
+        testset = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform_val)
+        extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform_val)
+        trainset = torch.utils.data.ConcatDataset([trainset, extraset])
+    else:
+        dataset_path = f'./data/{dataset}/'
+        if dataset == 'notmnist':
+            trainset = torchvision.datasets.ImageFolder(dataset_path, transform=transform)
+        if dataset == 'tin':
+            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
+            valset = processValTIN(dataset_path, transform_val)
+        else:
+            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
+            try:
+                valset = torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val)
+            except:
+                warn('No validation set.')
+            try:
+                testset = torchvision.datasets.ImageFolder(dataset_path + 'test', transform=transform_val)
+            except:
+                warn('No test set.')
+
+    if train:
+        # trainset = CutMix(trainset, num_class=getNumClasses(dataset), beta=1.0, prob=0.25, num_mix=2)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True)
+        if valset is not None:
+            valloader = torch.utils.data.DataLoader(valset, batch_size=BATCH_SIZE, shuffle=False)
+        if testset is not None:
+            testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False)
+        return trainloader, valloader, testloader
+    else:
+        if ID:
+            pass
+        elif valset is not None:
+            if testset is not None:
+                testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
+            else:
+                testset = torch.utils.data.ConcatDataset([trainset, valset])
+        elif testset is not None:
+            testset = torch.utils.data.ConcatDataset([trainset, testset])
+        else:
+            testset = trainset
+        testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False)
+        return testloader
+
+
+def processValTIN(dataset_path: str, transform_val):
+    dir_list = next(os.walk(dataset_path + 'val'))
+    if len(dir_list)[1] != 0 or len(dir_list)[2] != 200:
+        df = pd.read_csv(dataset_path + 'val/val_annotations.txt', delimiter='\t')
+        for dir_ in next(os.walk(dataset_path + 'train'))[1]:
+            os.makedirs(dataset_path + 'val/' + dir_, exist_ok=True)
+        for _, row in df.iterrows():
+            shutil.move(f'{dataset_path}val/images/{row[0]}', f'{dataset_path}val/{row[1]}/{row[0]}')
+        
+        shutil.move(f'{dataset_path}val/val_annotations.txt', f'{dataset_path}val/images/val_annotations.txt')
+        shutil.move(f'{dataset_path}val/images', dataset_path)  
+
+    return torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val)
 
 
 class AverageMeter(object):
@@ -61,161 +165,123 @@ class AverageMeter(object):
 def isCuda():
     global use_gpu
     use_gpu = torch.cuda.is_available()
-    print('GPU: '+use_gpu)
+    print('GPU: '+str(use_gpu))
+    return use_gpu
+    # return False
 
-def validate(model, criterion, epoch):
-    loss_ = AverageMeter()
-    model.eval()
-    correct = 0
-    total = 0
-    for i, (images, labels) in enumerate(testloader):
-        if use_gpu: 
-            images, labels = images.cuda(), labels.cuda()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-
-        loss_.update(loss.item())
-
-    acc = 100. * correct / total
-    print(f"Validate: Loss: {loss_.val:.8f} ({loss_.avg:.8f}), Accuracy: {acc:.8f}")
-    if epoch >= 0:
-        writer.add_scalar("loss/val", loss_.avg, epoch)
-        writer.add_scalar("acc/val", acc, epoch)
-    
-    return loss_.avg
+def showLayers(model, shape):
+    if use_gpu:
+        summary(model, (shape[2], shape[0], shape[1]))    
 
 
-
-# Train the model
-def train_(model, criterion, optimizer, epoch):
-    loss_ = AverageMeter()
-    model.train()
-    correct = 0
-    total = 0
-    for i, (images, labels) in enumerate(trainloader):
-        if use_gpu: 
-            images, labels = images.cuda(), labels.cuda()
-
-        optimizer.zero_grad()
-        # Forward pass
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-
-        # Backward and optimize
-        loss.backward()
-        optimizer.step()
-        loss_.update(loss.item())
-
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-        acc = 100. * correct / total
-
-
-        if (i+1) % 100 == 0:
-            print (f"Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(trainloader)}], Loss: {loss_:.4f}, Accuracy: {acc:.4f}")
-
-    print (f"Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len(trainloader)}], Loss: {loss_[0].val:.8f} ({loss_[0].avg:.8f}), Accuracy: {acc:.8f}")
-
-    if epoch >= 0:
-        writer.add_scalar("loss/train", loss_.avg, epoch)
-        writer.add_scalar("acc/train", acc, epoch)
-
-
-
-def train(nn: str, dataset: str, checkpoint: str):
-    global checkpoints, best_loss, best_epoch, patience, epochs, size, use_gpu
-    checkpoints = 'checkpoints'
-    best_loss = torch.tensor(1e10)
-    patience = 50
-    epoch, best_epoch, epochs = 0, -1, 1000
-
-    dataset_path = f'../data/{dataset}/'
+def shapeNormalization(dataset: str, train_ID=False):
     if dataset == 'cifar10': # todo generalize
-        shape = cv2.imread(f'{dataset_path}test/airplane/0001.png').shape
-        normalization = [0.49139968, 0.48215827, 0.44653124], [0.24703233, 0.24348505, 0.26158768] # mean, std
+        shape = 32, 32, 3
+        if train_ID:
+            normalization = [0.49139968, 0.48215827, 0.44653124], [0.24703233, 0.24348505, 0.26158768] # mean, std
+        else:
+            raise NotImplementedError(f'Normalization for entire {dataset} is not known.')
+    elif dataset == 'cifar10':
+        shape = 32, 32, 3
+        if train_ID:
+            normalization = [0.5071, 0.4867, 0.4408], [0.2675, 0.2565, 0.2761] # mean, std
+        else:
+            raise NotImplementedError(f'Normalization for entire {dataset} is not known.')
     elif dataset == 'mnist':
-        shape = cv2.imread(f'{dataset_path}test/0_3.jpg').shape
-        normalization = [0.13062754273414612], [0.30810779333114624] # mean, std
-    size = shape[:1]
+        shape = 28, 28, 1
+        if train_ID:
+            normalization = [0.13062754273414612], [0.30810779333114624] # mean, std
+        else:
+            raise NotImplementedError(f'Normalization for entire {dataset} is not known.')
+    else:
+        shape = 64, 64, 3
+        if train_ID:
+            normalization = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+        # raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
 
-    os.makedirs(checkpoints, exist_ok=True)
-    isCuda()
-    runTensorboard()
-    dataloader(dataset_path, normalization)
-    model = torch.hub.load('pytorch/vision:v0.10.0', nn) 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
-    criterion = nn.MSELoss()
+    return shape, normalization
 
+def getNumClasses(dataset: str):
+    if dataset in ['cifar10', 'mnist', 'Fashionmnist', 'notmnist', 'svhn']:
+        return 10
+    elif dataset == 'dtd':
+        return 47
+    elif dataset == 'cifar100':
+        return 100
+    elif dataset == 'places365':
+        return 365
+    elif dataset == 'tin':
+        return 1000
+    else:
+        raise NotImplementedError(f'Number of classes in {dataset} is not known.')
 
-    if use_gpu: 
-        criterion = criterion.cuda()
-        model = model.cuda()
-        summary(model, shape)    
-        
-    if checkpoint != '' and checkpoint is not None:
-        path = f'./checkpoints/{checkpoint}'
-        ckpt = torch.load(path)
-        model.load_state_dict(ckpt['model_state_dict'])
-        optimizer.load_state_dict(ckpt['optimizer_state_dict'])
-        epoch = ckpt['epoch']
-        model.train()
+def getNN(nn: str, dataset: str):
+    model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
 
+    numClasses = getNumClasses(dataset)
 
-    for epoch in range(epoch, epochs):
-        train_(model, criterion, optimizer, epoch)
-        with torch.no_grad():
-            loss = validate(model, criterion, epoch)
+    # if dataset in ['mnist', 'fashionmnist', 'notmnist'] and nn in ['resnet18', 'resnet34', 'renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2']:
+    #     model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+    # elif dataset in ['mnist', 'fashionmnist', 'notmnist'] and nn in ['densenet121', 'densenet169', 'densenet201']:
+    #     print(model.features[0])
+    #     model.features[0] = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False) # error
+    #     print(model.features[0])
+    # elif dataset in ['mnist', 'fashionmnist', 'notmnist'] and nn == 'densenet161':
+    #     model.features[0] = torch.nn.Conv2d(1, 96, kernel_size=7, stride=2, padding=3, bias=False) # error
 
-        if loss < best_loss:
-            best_loss = loss
-            best_epoch = epoch
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': loss,
-                }, f'{checkpoints}/epoch-{epoch}-MSELoss-{loss:.8f}.pth')
-        
-        if epoch - best_epoch >= patience and epoch >= 100:
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': loss,
-                }, f'{checkpoints}/epoch-{epoch}-MSELoss-{loss:.8f}-early_stop.pth')
-            break
+    if nn in ['resnet18', 'resnet34']:
+        model.fc = torch.nn.Linear(512, numClasses)
+    elif nn in ['renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2']:
+        model.fc = torch.nn.Linear(2048, numClasses)
+    elif nn == 'densenet121':
+        model.fc = torch.nn.Linear(1024, numClasses)
+    elif nn == 'densenet161':
+        model.fc = torch.nn.Linear(2208, numClasses)
+    elif nn == 'densenet169':
+        model.fc = torch.nn.Linear(1664, numClasses)
+    elif nn == 'densenet201':
+        model.fc = torch.nn.Linear(1920, numClasses)
+    else:
+        raise NotImplementedError(f'Network {nn} is not known.')
+    
+    return model
 
+def getNumFeatures(nn: str):
+    model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
+
+    if nn in ['resnet18', 'resnet34']:
+        return 512
+    elif nn in ['renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2']:
+        return 2048
+    elif nn == 'densenet121':
+        return 1024
+    elif nn == 'densenet161':
+        return 2208
+    elif nn == 'densenet169':
+        return 1664
+    elif nn == 'densenet201':
+        return 1920
+    else:
+        raise NotImplementedError(f'Network {nn} is not known.')
+    
+    return model
+
+def touchCSV(path: str, headers):
+    with open(path, 'w') as file:
+        file.writelines(",".join(headers) + "\n")
+
+def generateHeaders(num_headers: int):
+    headers = []  
+    for header in range(1,num_headers + 1):
+        headers.append(f"{header}_feature")
+    
+    headers.append("class")
+    return headers
+
+def saveModel(epoch: int, model, optimizer, loss: float, checkpoints: str, nn: str, flag: int):
     torch.save({
         'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
+        'model_state_dict': model,
+        'optimizer_state_dict': optimizer,
         'loss': loss,
-        }, f'{checkpoints}/epoch-{epoch}-last-{loss:.8f}.pth')
-
-    with torch.no_grad():
-        validate(model, criterion, -1)
-
-
-def measure(nn, methd, in_dataset, out_datasets, checkpoint):
-    in_dataset_path = f'../data/{in_dataset}/'
-    out_datasets = out_datasets.split(' ')
-    out_datasets_paths = [f'../data/{out_dataset}/' for out_dataset in out_datasets]
-
-    model = torch.hub.load('pytorch/vision:v0.10.0', nn) 
-    isCuda()
-    if use_gpu:
-        model = model.cuda()
-
-    path = f'./checkpoints/{checkpoint}'
-    ckpt = torch.load(path)
-    model.load_state_dict(ckpt['model_state_dict'])
-    model.eval()
-
-
-    raise NotImplementedError()
-
+        }, f'{checkpoints}/model-{nn}-epoch-{epoch}{"-last" if flag == 2 else ""}-CrossEntropyLoss-{loss:.8f}{"-early_stop" if flag == 1 else ""}.pth')
