@@ -4,7 +4,7 @@ from datetime import datetime
 from lookahead_pytorch import Lookahead
 from torch.optim.lr_scheduler import MultiStepLR
 
-from utils import getNN, runTensorboard, dataloader, AverageMeter, isCuda, saveModel, showLayers, updateWriter, shapeNormalization
+from utils import getNN, runTensorboard, dataloader, AverageMeter, isCuda, saveModel, showLayers, updateWriter, getShape, getNormalization
 # from cutmix.utils import CutMixCrossEntropyLoss
 # from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
 
@@ -87,11 +87,12 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
     patience = 70
     epoch, best_epoch, epochs = 0, -1, 1000
 
-    shape, normalization = shapeNormalization(dataset, True)
+    shape = getShape(dataset)
+    normalization = getNormalization(dataset, True)
     os.makedirs(checkpoints, exist_ok=True)
     use_gpu = isCuda()
     runTensorboard()
-    trainloader, valloader, testloader = dataloader(dataset, normalization, shape[:2], None, True, None, n_holes, length)
+    trainloader, valloader, testloader = dataloader(dataset, shape[:2], None, True, None, n_holes, length, normalization)
 
     model = getNN(nn, dataset)
     criterion = torch.nn.CrossEntropyLoss()

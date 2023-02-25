@@ -2,6 +2,7 @@ import os
 import shutil
 from typing import List
 from warnings import warn
+import numpy as np
 import pandas as pd
 from tensorboard import program
 from torch.utils.tensorboard import SummaryWriter
@@ -27,9 +28,8 @@ def updateWriter(mode: str, loss: float, acc: float, epoch: int):
     writer.add_scalar(f"loss/{mode}", loss, epoch)
     writer.add_scalar(f"acc/{mode}", acc, epoch)
 
-def dataloader(dataset: str, normalization: List[List[float]], size: List[int], rgb: bool, train: bool, ID: bool, n_holes: int, length: int):
+def dataloader(dataset: str, size: List[int], rgb: bool, train: bool, ID: bool, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False):
     global trainloader, valloader
-    valset = testset = None
     valloader = testloader = None
     
     if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # sieć musi być kolorowa więc dataset tez
@@ -48,6 +48,8 @@ def dataloader(dataset: str, normalization: List[List[float]], size: List[int], 
             transforms.ToTensor(),
             transforms.Normalize(normalization[0], normalization[1]),
         ])
+    elif calcNorm is True:
+        transform = transform_val = None
     else:
         if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # todo problem z zmianą kolorów
             convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
@@ -58,12 +60,39 @@ def dataloader(dataset: str, normalization: List[List[float]], size: List[int], 
 
         transform = transforms.Compose([
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
-            transforms.ToTensor(),
+            transforms.ToTensor(), 
             transforms.Normalize(normalization[0], normalization[1]),
             convert,
         ])
         transform_val = transform
 
+    trainset, valset, testset, _ = getDataset(dataset, transform, transform_val)
+
+    if train:
+        # trainset = CutMix(trainset, num_class=getNumClasses(dataset), beta=1.0, prob=0.25, num_mix=2)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+        if valset is not None:
+            valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False)
+        if testset is not None:
+            testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+        return trainloader, valloader, testloader
+    else:
+        if ID:
+            pass
+        elif valset is not None:
+            if testset is not None:
+                testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
+            else:
+                testset = torch.utils.data.ConcatDataset([trainset, valset])
+        elif testset is not None:
+            testset = torch.utils.data.ConcatDataset([trainset, testset])
+        else:
+            testset = trainset
+        testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+        return testloader
+
+def getDataset(dataset: str, transform = None, transform_val = None):
+    valset = testset = extraset = None
     if dataset == 'cifar10':
         trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
         valset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
@@ -86,19 +115,19 @@ def dataloader(dataset: str, normalization: List[List[float]], size: List[int], 
         valset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_val)
     
     elif dataset == 'places365': # todo small=True - 256x256 zamiast high-resolution?
-        trainset = torchvision.datasets.Places365(root='./data', download=True, transform=transform)
-        valset = torchvision.datasets.Places365(root='./data', split='val', download=True, transform=transform_val)
+        trainset = torchvision.datasets.Places365(root='./data', download=True, transform=transform, small=True)
+        valset = torchvision.datasets.Places365(root='./data', split='val', download=True, transform=transform_val, small=True)
     
     elif dataset == 'svhn':
         trainset = torchvision.datasets.SVHN(root='./data', download=True, transform=transform)
         testset = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform_val)
         extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform_val)
-        trainset = torch.utils.data.ConcatDataset([trainset, extraset])
+        # trainset = torch.utils.data.ConcatDataset([trainset, extraset])
     else:
         dataset_path = f'./data/{dataset}/'
         if dataset == 'notmnist':
             trainset = torchvision.datasets.ImageFolder(dataset_path, transform=transform)
-        if dataset == 'tin':
+        elif dataset == 'tin':
             trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
             valset = processValTIN(dataset_path, transform_val)
         else:
@@ -112,33 +141,10 @@ def dataloader(dataset: str, normalization: List[List[float]], size: List[int], 
             except:
                 warn('No test set.')
 
-    if train:
-        # trainset = CutMix(trainset, num_class=getNumClasses(dataset), beta=1.0, prob=0.25, num_mix=2)
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True)
-        if valset is not None:
-            valloader = torch.utils.data.DataLoader(valset, batch_size=BATCH_SIZE, shuffle=False)
-        if testset is not None:
-            testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False)
-        return trainloader, valloader, testloader
-    else:
-        if ID:
-            pass
-        elif valset is not None:
-            if testset is not None:
-                testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
-            else:
-                testset = torch.utils.data.ConcatDataset([trainset, valset])
-        elif testset is not None:
-            testset = torch.utils.data.ConcatDataset([trainset, testset])
-        else:
-            testset = trainset
-        testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False)
-        return testloader
-
+    return trainset, valset, testset, extraset
 
 def processValTIN(dataset_path: str, transform_val):
-    dir_list = next(os.walk(dataset_path + 'val'))
-    if len(dir_list)[1] != 0 or len(dir_list)[2] != 200:
+    if len(os.listdir(dataset_path + 'val')) != 200:
         df = pd.read_csv(dataset_path + 'val/val_annotations.txt', delimiter='\t')
         for dir_ in next(os.walk(dataset_path + 'train'))[1]:
             os.makedirs(dataset_path + 'val/' + dir_, exist_ok=True)
@@ -174,32 +180,70 @@ def showLayers(model, shape):
         summary(model, (shape[2], shape[0], shape[1]))    
 
 
-def shapeNormalization(dataset: str, train_ID=False):
+def getNormalization(dataset: str, train_ID=False):
     if dataset == 'cifar10': # todo generalize
-        shape = 32, 32, 3
         if train_ID:
-            normalization = [0.49139968, 0.48215827, 0.44653124], [0.24703233, 0.24348505, 0.26158768] # mean, std
+            normalization = [0.49139968, 0.48215841, 0.44653091], [0.24703223, 0.24348513, 0.26158784]
         else:
-            raise NotImplementedError(f'Normalization for entire {dataset} is not known.')
-    elif dataset == 'cifar10':
-        shape = 32, 32, 3
+            normalization = [0.49186878, 0.48265391, 0.44717728], [0.24697121, 0.24338894, 0.26159259]
+    elif dataset == 'cifar100':
         if train_ID:
-            normalization = [0.5071, 0.4867, 0.4408], [0.2675, 0.2565, 0.2761] # mean, std
+            normalization = [0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]
         else:
-            raise NotImplementedError(f'Normalization for entire {dataset} is not known.')
+            normalization = [0.50736203, 0.48668956, 0.44108857], [0.26748815, 0.2565931, 0.27630851]
     elif dataset == 'mnist':
-        shape = 28, 28, 1
         if train_ID:
-            normalization = [0.13062754273414612], [0.30810779333114624] # mean, std
+            normalization = [0.13062754273414612], [0.30810779333114624]
         else:
-            raise NotImplementedError(f'Normalization for entire {dataset} is not known.')
-    else:
-        shape = 64, 64, 3
+            normalization = [0.13092535192648502], [0.3084485240270358]
+    elif dataset == 'fashionmnist':
         if train_ID:
-            normalization = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
-        # raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
+            normalization = [0.28604060411453247], [0.3530242443084717]
+        else:
+            normalization = [0.2861561232350083], [0.3529415461508495]
+    elif dataset == 'notmnist':
+        if train_ID:
+            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
+        else:
+            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
+    elif dataset == 'dtd':
+        if train_ID:
+            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
+        else:
+            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
+    elif dataset == 'places365':
+        if train_ID:
+            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
+        else:
+            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
+    elif dataset == 'svhn':
+        if train_ID:
+            normalization = [0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]
+        else:
+            normalization = [0.44154697, 0.44605756, 0.47180097], [0.20396256, 0.20805474, 0.20576004]
+    elif dataset == 'tin':
+        if train_ID:
+            normalization = [0.48023694, 0.44806704, 0.39750364], [0.27643643, 0.26886328, 0.28158993]
+        else:
+            normalization = [0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]
+    else:
+        normalization = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
 
-    return shape, normalization
+    return normalization
+
+def getShape(dataset: str):
+    if dataset in ['cifar10', 'cifar100', 'svhn']: # todo generalize
+        shape = 32, 32, 3
+    elif dataset in ['mnist', 'fashionmnist', 'notmnist']:
+        shape = 28, 28, 3
+    elif dataset == 'dtd':
+        shape = 300, 300, 3
+    elif dataset == 'places365':
+        shape = 256, 256, 3
+    elif dataset == 'tin':
+        shape = 64, 64, 3
+
+    return shape
 
 def getNumClasses(dataset: str):
     if dataset in ['cifar10', 'mnist', 'Fashionmnist', 'notmnist', 'svhn']:
@@ -217,38 +261,12 @@ def getNumClasses(dataset: str):
 
 def getNN(nn: str, dataset: str):
     model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-
+    numFetures = getNumFeature(nn)
     numClasses = getNumClasses(dataset)
-
-    # if dataset in ['mnist', 'fashionmnist', 'notmnist'] and nn in ['resnet18', 'resnet34', 'renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2']:
-    #     model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-    # elif dataset in ['mnist', 'fashionmnist', 'notmnist'] and nn in ['densenet121', 'densenet169', 'densenet201']:
-    #     print(model.features[0])
-    #     model.features[0] = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False) # error
-    #     print(model.features[0])
-    # elif dataset in ['mnist', 'fashionmnist', 'notmnist'] and nn == 'densenet161':
-    #     model.features[0] = torch.nn.Conv2d(1, 96, kernel_size=7, stride=2, padding=3, bias=False) # error
-
-    if nn in ['resnet18', 'resnet34']:
-        model.fc = torch.nn.Linear(512, numClasses)
-    elif nn in ['renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2']:
-        model.fc = torch.nn.Linear(2048, numClasses)
-    elif nn == 'densenet121':
-        model.fc = torch.nn.Linear(1024, numClasses)
-    elif nn == 'densenet161':
-        model.fc = torch.nn.Linear(2208, numClasses)
-    elif nn == 'densenet169':
-        model.fc = torch.nn.Linear(1664, numClasses)
-    elif nn == 'densenet201':
-        model.fc = torch.nn.Linear(1920, numClasses)
-    else:
-        raise NotImplementedError(f'Network {nn} is not known.')
-    
+    model.fc = torch.nn.Linear(numFetures, numClasses)
     return model
 
-def getNumFeatures(nn: str):
-    model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-
+def getNumFeature(nn: str):
     if nn in ['resnet18', 'resnet34']:
         return 512
     elif nn in ['renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2']:
@@ -263,8 +281,6 @@ def getNumFeatures(nn: str):
         return 1920
     else:
         raise NotImplementedError(f'Network {nn} is not known.')
-    
-    return model
 
 def touchCSV(path: str, headers):
     with open(path, 'w') as file:

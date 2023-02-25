@@ -2,7 +2,7 @@ import time
 import torch
 import pandas as pd
 import numpy as np
-from utils import dataloader, isCuda, shapeNormalization,  showLayers
+from utils import dataloader, isCuda, getShape, getNormalization,  showLayers
 from torch.autograd import Variable
 
 temper = 1000
@@ -90,14 +90,16 @@ def measure(nn: str, method: str, feature_dataset: str):
     # showLayers(model, (32, 32, 3)) 
     # model.eval()
 
-    # shape, normalization = shapeNormalization(in_dataset, True)
-    # testloader = dataloader(in_dataset, normalization, shape[:2], False)
+    # shape = getShape(in_dataset)
+    # normalization = getNormalization(in_dataset, True)
+    # testloader = dataloader(in_dataset, shape[:2], False, normalization)
     # output_ID = measure_(method, testloader)
 
     # output_OoD = {}
     # for out_dataset in out_datasets:
-    #     shape, normalization = shapeNormalization(out_dataset)
-    #     testloader = dataloader(out_dataset, normalization, shape[:2], False)
+    #         shape = getShape(ood_dataset)
+    #         normalization = getNormalization(ood_dataset, True)
+    #     testloader = dataloader(out_dataset, shape[:2], False, normalization)
     #     output_OoD[out_dataset] = measure_(method, testloader)
     raise NotImplementedError()
 

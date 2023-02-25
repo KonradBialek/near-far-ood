@@ -2,44 +2,65 @@ from pathlib import Path
 import numpy as np
 import argparse
 from PIL import Image
-from utils import dataloader
+import torch
+from utils import dataloader, getDataset, getShape
 
-OOD_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
+dataset_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
+builtin_datasets = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'mnist', 'fashionmnist']
+mode_options = ['train', 'all']
 parser = argparse.ArgumentParser()
-parser.add_argument('-d', '--dataset', default="cifar10", type=str, choices=OOD_options,
+parser.add_argument('-d', '--dataset', default="cifar10", type=str, choices=dataset_options,
                     help='dataset (name in torchvision.models or folder name in ./data)')
+parser.add_argument('-m', '--mode', default="train", type=str, choices=mode_options,
+                    help='calculate normalization for train subset or all images')
 
 args = parser.parse_args()
-imageFilesDir = Path('../datasets/dataset/train/colour')
-files = list(imageFilesDir.rglob('*.jpg'))
-dataloader = dataloader(args.dataset, normalization, shape[:2], None, True, None, n_holes, length)
-# Since the std can't be calculated by simply finding it for each image and averaging like  
-# the mean can be, to get the std we first calculate the overall mean in a first run then  
-# run it again to get the std.
 
-mean = np.array([0.,0.,0.])
-stdTemp = np.array([0.,0.,0.])
-std = np.array([0.,0.,0.])
+trainset, valset, testset, _ = getDataset(args.dataset)
 
-numSamples = len(files)
+if args.dataset in builtin_datasets:
+    if args.mode == 'all':
+        if valset is not None:
+            if testset is not None:
+                data = np.concatenate((trainset.data, valset.data, testset.data), axis=0)
+            else:
+                data = np.concatenate((trainset.data, valset.data), axis=0)
+        elif testset is not None:
+            data = np.concatenate((trainset.data, testset.data), axis=0)
+    else:
+        data = trainset.data
+    data = data / 255 # data is numpy array
 
-for i in range(numSamples):
-    im = np.asarray(Image.open(str(files[i])).convert("RGB"))
-    im = im / 255.
-    
-    for j in range(3):
-        mean[j] += np.mean(im[:,:,j])
+else:
+    filelist = [trainset.imgs[x][0] for x in range(len(trainset.imgs))]
+    if args.mode == 'all':
+        if valset is not None:
+            vallist = [valset.imgs[x][0] for x in range(len(valset.imgs))]
+            if testset is not None:
+                testlist = [testset.imgs[x][0] for x in range(len(testset.imgs))]
+                filelist = np.concatenate((filelist, vallist, testlist), axis=0)
+            else:
+                filelist = np.concatenate((filelist, vallist), axis=0)
+        elif testset is not None:
+            testlist = [testset.imgs[x][0] for x in range(len(testset.imgs))]
+            filelist = np.concatenate((filelist, testlist), axis=0)
 
-mean = (mean/numSamples)
+    imgs = []
+    for fname in filelist:
+        img = Image.open(fname)
+        if img.mode != "RGB":
+            img.convert("RGB")
+        img = np.array(img)
+        if img.shape != (64, 64, 3):
+            img = np.repeat(img[:, :, np.newaxis], 3, axis=2)
 
-for i in range(numSamples):
-    im = np.asarray(Image.open(str(files[i])).convert("RGB"))
-    im = im / 255.
-    
-    for j in range(3):
-        stdTemp[j] += ((im[:,:,j] - mean[j])**2).sum()/(im.shape[0]*im.shape[1])
+        imgs.append(img)
+    data = np.array(imgs)
+    data = data / 255
 
-std = np.sqrt(stdTemp/numSamples)
+if args.dataset == 'svhn':
+    data = np.transpose(data, (0, 2, 3, 1))
 
-print(mean)
-print(std)
+mean = data.mean(axis = (0,1,2)) 
+std = data.std(axis = (0,1,2))
+print(f"{mean}, {std}")

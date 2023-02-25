@@ -1,7 +1,7 @@
 import pandas as pd
 import torch
 import os
-from utils import dataloader, getNumFeatures, isCuda, shapeNormalization,  showLayers, touchCSV, generateHeaders
+from utils import dataloader, getNumFeatures, isCuda, getShape, getNormalization,  showLayers, touchCSV, generateHeaders
 
 def extract(model, testloader: torch.utils.data.DataLoader, path: str):
     for images, labels in testloader:
@@ -41,22 +41,24 @@ def extractFeatures(nn: str, in_dataset: str, ood_datasets: list, checkpoint: st
     model.eval()
 
     os.makedirs('./features/', exist_ok=True)
-    # shape, normalization = shapeNormalization(in_dataset, True)
-    # showLayers(model, shape) 
-    # testloader = dataloader(in_dataset, normalization, shape[:2], rgb, False, True, 1, 16)
-    # path = f'./features/{in_dataset}_{nn}_ID_test'
-    # touchCSV(path, headers)
-    # print(f'extracting {in_dataset}')
-    # if testloader is None:
-    #     # extract(model, valloader, num_features,  True)
-    #     pass
-    # else:   
-    #     extract(model, testloader, path)
+    shape = getShape(in_dataset)
+    normalization = getNormalization(in_dataset, True)
+    showLayers(model, shape) 
+    testloader = dataloader(in_dataset, shape[:2], rgb, False, True, 1, 16, normalization)
+    path = f'./features/{in_dataset}_{nn}_ID_test'
+    touchCSV(path, headers)
+    print(f'extracting {in_dataset}')
+    if testloader is None:
+        # extract(model, valloader, num_features,  True)
+        pass
+    else:   
+        extract(model, testloader, path)
     
 
     for ood_dataset in ood_datasets:
-        shape, normalization = shapeNormalization(ood_dataset, True)
-        testloader = dataloader(ood_dataset, normalization, shape[:2], rgb, False, False, 1, 16)
+        shape = getShape(ood_dataset)
+        normalization = getNormalization(ood_dataset, True)
+        testloader = dataloader(ood_dataset, shape[:2], rgb, False, False, 1, 16, normalization)
         path = f'./features/{ood_dataset}_{nn}_OoD'
         touchCSV(path, headers)
         print(f'extracting {ood_dataset}')
