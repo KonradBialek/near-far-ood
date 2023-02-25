@@ -48,11 +48,7 @@ def extractFeatures(nn: str, in_dataset: str, ood_datasets: list, checkpoint: st
     path = f'./features/{in_dataset}_{nn}_ID_test'
     touchCSV(path, headers)
     print(f'extracting {in_dataset}')
-    if testloader is None:
-        # extract(model, valloader, num_features,  True)
-        pass
-    else:   
-        extract(model, testloader, path)
+    extract(model, testloader, path)
     
 
     for ood_dataset in ood_datasets:
