@@ -1,7 +1,7 @@
 import torch
 import pandas as pd
 import numpy as np
-from utils import dataloader, getNN, isCuda, getShape, getNormalization, loadNNWeights, save_scores,  showLayers
+from .utils import dataloader, getNN, isCuda, getShape, getNormalization, loadNNWeights, save_scores,  showLayers
 import faiss
 
 temper = 1000

@@ -1,10 +1,10 @@
 import os
 import torch
 from datetime import datetime
-from lookahead_pytorch import Lookahead
+from .lookahead_pytorch import Lookahead
 from torch.optim.lr_scheduler import MultiStepLR
 
-from utils import getNN, runTensorboard, dataloader, AverageMeter, isCuda, saveModel, showLayers, updateWriter, getShape, getNormalization
+from .utils import getNN, runTensorboard, dataloader, AverageMeter, isCuda, saveModel, showLayers, updateWriter, getShape, getNormalization
 # from cutmix.utils import CutMixCrossEntropyLoss
 # from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
 

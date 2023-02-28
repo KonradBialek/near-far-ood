@@ -1,7 +1,7 @@
 import pandas as pd
 import torch
 import os
-from utils import dataloader, getNumFeatures, getShape, getNormalization, isCuda, loadNNWeights,  showLayers, touchCSV, generateHeaders
+from .utils import dataloader, getNumFeatures, getShape, getNormalization, isCuda, loadNNWeights,  showLayers, touchCSV, generateHeaders
 
 def extract(model, testloader: torch.utils.data.DataLoader, path: str, use_gpu: bool):
     for images, labels in testloader:

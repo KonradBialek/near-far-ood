@@ -1,9 +1,7 @@
-from pathlib import Path
 import numpy as np
 import argparse
 from PIL import Image
-import torch
-from utils import dataloader, getDataset, getShape
+from utils.utils import getDataset
 
 dataset_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
 builtin_datasets = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'mnist', 'fashionmnist']

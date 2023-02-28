@@ -1,8 +1,8 @@
 import argparse
 from warnings import warn
-from .extractFeatures import extractFeatures
-from .train import train
-from .measure import measure
+from utils.extractFeatures import extractFeatures
+from utils.train import train
+from utils.measure import measure
 
 
 model_options = ['resnet18', 'resnet34', 'renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2', 'densenet121', 'densenet161', 'densenet169', 'densenet201']
