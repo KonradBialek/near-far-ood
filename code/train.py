@@ -16,7 +16,7 @@ def validate_(model, valloader, testloader, criterion, epoch):
             return validate(model, testloader, criterion, epoch)
 
 
-def validate(model, loader, criterion, epoch):
+def validate(model, loader, criterion, epoch: int):
     loss_ = AverageMeter()
     model.eval()
     correct = 0
@@ -41,7 +41,7 @@ def validate(model, loader, criterion, epoch):
     return loss_.avg
 
 
-def train_(model, trainloader, criterion, optimizer, epoch):
+def train_(model, trainloader: torch.utils.data.DataLoader, criterion, optimizer, epoch: int, epochs: int):
     loss_ = AverageMeter()
     model.train()
     correct = 0
@@ -79,7 +79,7 @@ def train_(model, trainloader, criterion, optimizer, epoch):
 
 # def train(nn: str, dataset: str, checkpoint: str, la_steps: int, la_alpha: float, n_holes: int, length: int):
 def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
-    global checkpoints, best_loss, best_epoch, patience, epochs, size, use_gpu
+    global use_gpu
     now = datetime.now()
     date_time = now.strftime("%m-%d-%Y_%H-%M-%S")
     checkpoints = f'checkpoints/{nn}/{dataset}/{date_time}'
@@ -126,7 +126,7 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
         model.train()
 
     for epoch in range(epoch, epochs):
-        train_(model, trainloader, criterion, optimizer, epoch)
+        train_(model, trainloader, criterion, optimizer, epoch, epochs)
         loss = validate_(model, valloader, testloader, criterion, epoch)
         
         scheduler.step()

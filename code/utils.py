@@ -15,25 +15,34 @@ import pandas as pd
 # from cutmix.cutmix import CutMix
 
 BATCH_SIZE = 256
+writer = SummaryWriter()
 
+class Convert:
+    def __init__(self, mode='RGB'):
+        self.mode = mode
+
+    def __call__(self, image):
+        return image.convert(self.mode)
+    
+    
 def runTensorboard():
     tb = program.TensorBoard()
     tb.configure(argv=[None, '--logdir', 'runs'])
     url = tb.launch()
     print(f"TensorBoard on {url}")
-    global writer
-    writer = SummaryWriter()
 
 def updateWriter(mode: str, loss: float, acc: float, epoch: int):
     writer.add_scalar(f"loss/{mode}", loss, epoch)
     writer.add_scalar(f"acc/{mode}", acc, epoch)
 
-def dataloader(dataset: str, size: List[int], rgb: bool, train: bool, ID: bool, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False):
-    global trainloader, valloader
+def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False, postprocess = False):
     valloader = testloader = None
     
     if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # sieć musi być kolorowa więc dataset tez
         convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
+    else:
+        convert = transforms.Lambda(lambda x: x)
+
     if train:
         transform = transforms.Compose([
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC), # for irregular datasets
@@ -48,15 +57,23 @@ def dataloader(dataset: str, size: List[int], rgb: bool, train: bool, ID: bool, 
             transforms.ToTensor(),
             transforms.Normalize(normalization[0], normalization[1]),
         ])
-    elif calcNorm is True:
-        transform = transform_val = None
+    elif calcNorm or postprocess:
+        transform = transform_val = transforms.Compose([
+            Convert('RGB'),
+            transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
+            transforms.CenterCrop(size),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(size, padding=4),
+            transforms.ToTensor(),
+            transforms.Normalize(normalization[0], normalization[1]),
+        ])
     else:
-        if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # todo problem z zmianą kolorów
-            convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
+        # if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # todo problem z zmianą kolorów
+        #     convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
         # elif not rgb and dataset in ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin']:
         #     convert = transforms.Grayscale(num_output_channels=1)
-        else:
-            convert = transforms.Lambda(lambda x: x)
+        # else:
+        #     convert = transforms.Lambda(lambda x: x)
 
         transform = transforms.Compose([
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
@@ -68,7 +85,7 @@ def dataloader(dataset: str, size: List[int], rgb: bool, train: bool, ID: bool, 
 
     trainset, valset, testset, _ = getDataset(dataset, transform, transform_val)
 
-    if train:
+    if train or postprocess:
         # trainset = CutMix(trainset, num_class=getNumClasses(dataset), beta=1.0, prob=0.25, num_mix=2)
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
         if valset is not None:
@@ -78,7 +95,7 @@ def dataloader(dataset: str, size: List[int], rgb: bool, train: bool, ID: bool, 
         return trainloader, valloader, testloader
     else:
         if ID:
-            pass
+            testset = trainset
         elif valset is not None:
             if testset is not None:
                 testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
@@ -129,7 +146,7 @@ def getDataset(dataset: str, transform = None, transform_val = None):
             trainset = torchvision.datasets.ImageFolder(dataset_path, transform=transform)
         elif dataset == 'tin':
             trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
-            valset = processValTIN(dataset_path, transform_val)
+            valset = processValTIN(dataset_path, transform_val) # if tiny imagenet val in raw form
         else:
             trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
             try:
@@ -170,10 +187,10 @@ class AverageMeter(object):
 
 def isCuda():
     global use_gpu
+    # use_gpu = False # if gpu is busy
     use_gpu = torch.cuda.is_available()
     print('GPU: '+str(use_gpu))
     return use_gpu
-    # return False
 
 def showLayers(model, shape):
     if use_gpu:
@@ -261,12 +278,12 @@ def getNumClasses(dataset: str):
 
 def getNN(nn: str, dataset: str):
     model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-    numFetures = getNumFeature(nn)
+    numFetures = getNumFeatures(nn)
     numClasses = getNumClasses(dataset)
     model.fc = torch.nn.Linear(numFetures, numClasses)
     return model
 
-def getNumFeature(nn: str):
+def getNumFeatures(nn: str):
     if nn in ['resnet18', 'resnet34']:
         return 512
     elif nn in ['renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2']:
@@ -301,3 +318,26 @@ def saveModel(epoch: int, model, optimizer, loss: float, checkpoints: str, nn: s
         'optimizer_state_dict': optimizer,
         'loss': loss,
         }, f'{checkpoints}/model-{nn}-epoch-{epoch}{"-last" if flag == 2 else ""}-CrossEntropyLoss-{loss:.8f}{"-early_stop" if flag == 1 else ""}.pth')
+
+def loadNNWeights(nn: str, checkpoint: str):
+    path = f'./checkpoints/{checkpoint}'
+    ckpt = torch.load(path)
+    model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
+    model.fc = torch.nn.Identity()
+    use_gpu = isCuda()
+    if use_gpu:
+        model = model.cuda()
+    missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'], strict=False)
+    # print(missing_keys)
+    # print(unexpected_keys)
+    model.eval()
+    return model
+
+
+def save_scores(pred, conf, gt, save_name):
+    save_dir = os.path.join('./results', 'scores1')
+    os.makedirs(save_dir, exist_ok=True)
+    np.savez(os.path.join(save_dir, save_name),
+                pred=pred,
+                conf=conf,
+                label=gt)
