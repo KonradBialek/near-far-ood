@@ -26,9 +26,9 @@ def KNN(data: pd.DataFrame, method_args):
     )
     return torch.from_numpy(D[:, -1])
     
-def ODIN(nnOutputs: pd.DataFrame):
-    # Using temperature scaling
-    outputs = outputs / temper
+# def ODIN(nnOutputs: pd.DataFrame):
+#     # Using temperature scaling
+#     outputs = outputs / temper
 
 
     # # Calculating the perturbation we need to add, that is,

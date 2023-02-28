@@ -48,9 +48,9 @@ else:
         img = Image.open(fname)
         if img.mode != "RGB":
             img.convert("RGB")
-        img = np.array(img)
-        if img.shape != (64, 64, 3):
-            img = np.repeat(img[:, :, np.newaxis], 3, axis=2)
+        img_arr = np.array(img)
+        if img_arr.shape != (64, 64, 3):
+            img_arr = np.repeat(img_arr[:, :, np.newaxis], 3, axis=2)
 
         imgs.append(img)
     data = np.array(imgs)

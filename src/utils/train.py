@@ -8,15 +8,15 @@ from .utils import getNN, runTensorboard, dataloader, AverageMeter, isCuda, save
 # from cutmix.utils import CutMixCrossEntropyLoss
 # from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
 
-def validate_(model, valloader, testloader, criterion, epoch):
+def validate_(model, valloader, testloader, criterion, epoch, use_gpu: bool):
     with torch.no_grad():
         if testloader is None:
-            return validate(model, valloader, criterion, epoch)
+            return validate(model, valloader, criterion, epoch, use_gpu)
         else:
-            return validate(model, testloader, criterion, epoch)
+            return validate(model, testloader, criterion, epoch, use_gpu)
 
 
-def validate(model, loader, criterion, epoch: int):
+def validate(model, loader, criterion, epoch: int, use_gpu: bool):
     loss_ = AverageMeter()
     model.eval()
     correct = 0
@@ -41,7 +41,7 @@ def validate(model, loader, criterion, epoch: int):
     return loss_.avg
 
 
-def train_(model, trainloader: torch.utils.data.DataLoader, criterion, optimizer, epoch: int, epochs: int):
+def train_(model, trainloader: torch.utils.data.DataLoader, criterion, optimizer, epoch: int, epochs: int, use_gpu: bool):
     loss_ = AverageMeter()
     model.train()
     correct = 0
@@ -79,7 +79,6 @@ def train_(model, trainloader: torch.utils.data.DataLoader, criterion, optimizer
 
 # def train(nn: str, dataset: str, checkpoint: str, la_steps: int, la_alpha: float, n_holes: int, length: int):
 def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
-    global use_gpu
     now = datetime.now()
     date_time = now.strftime("%m-%d-%Y_%H-%M-%S")
     checkpoints = f'checkpoints/{nn}/{dataset}/{date_time}'
@@ -126,8 +125,8 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
         model.train()
 
     for epoch in range(epoch, epochs):
-        train_(model, trainloader, criterion, optimizer, epoch, epochs)
-        loss = validate_(model, valloader, testloader, criterion, epoch)
+        train_(model, trainloader, criterion, optimizer, epoch, epochs, use_gpu)
+        loss = validate_(model, valloader, testloader, criterion, epoch, use_gpu)
         
         scheduler.step()
 
@@ -142,4 +141,4 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
 
     saveModel(epoch, model.state_dict(), optimizer.state_dict(), loss, checkpoints, nn, 2)
 
-    validate_(model, valloader, testloader, criterion, epoch)
+    validate_(model, valloader, testloader, criterion, epoch, use_gpu)
