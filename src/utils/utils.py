@@ -311,11 +311,12 @@ def generateHeaders(num_headers: int):
     headers.append("class")
     return headers
 
-def saveModel(epoch: int, model, optimizer, loss: float, checkpoints: str, nn: str, flag: int):
+def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints: str, nn: str, flag: int):
     torch.save({
         'epoch': epoch,
         'model_state_dict': model,
         'optimizer_state_dict': optimizer,
+        'scheduler_state_dict': scheduler,
         'loss': loss,
         }, f'{checkpoints}/model-{nn}-epoch-{epoch}{"-last" if flag == 2 else ""}-CrossEntropyLoss-{loss:.8f}{"-early_stop" if flag == 1 else ""}.pth')
 

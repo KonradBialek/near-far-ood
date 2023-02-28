@@ -133,12 +133,12 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
         if loss < best_loss:
             best_loss = loss
             best_epoch = epoch
-            saveModel(epoch, model.state_dict(), optimizer.state_dict(), loss, checkpoints, nn, 0)
+            saveModel(epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict(), loss, checkpoints, nn, 0)
         
         if epoch - best_epoch >= patience and epoch >= 100:
-            saveModel(epoch, model.state_dict(), optimizer.state_dict(), loss, checkpoints, nn, 1)
+            saveModel(epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict(), loss, checkpoints, nn, 1)
             break
 
-    saveModel(epoch, model.state_dict(), optimizer.state_dict(), loss, checkpoints, nn, 2)
+    saveModel(epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict(), loss, checkpoints, nn, 2)
 
     validate_(model, valloader, testloader, criterion, epoch, use_gpu)
