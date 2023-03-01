@@ -187,8 +187,8 @@ class AverageMeter(object):
 
 def isCuda():
     global use_gpu
-    use_gpu = False # if gpu is busy
-    # use_gpu = torch.cuda.is_available()
+    # use_gpu = False # if gpu is busy
+    use_gpu = torch.cuda.is_available()
     print('GPU: '+str(use_gpu))
     return use_gpu
 

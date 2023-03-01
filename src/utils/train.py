@@ -1,8 +1,9 @@
 import os
 import torch
 from datetime import datetime
-from .lookahead_pytorch import Lookahead
+# from .lookahead_pytorch import Lookahead
 from torch.optim.lr_scheduler import MultiStepLR
+from torch_optimizer import Lookahead
 
 from .utils import getNN, runTensorboard, dataloader, AverageMeter, isCuda, saveModel, showLayers, updateWriter, getShape, getNormalization
 # from cutmix.utils import CutMixCrossEntropyLoss
@@ -78,7 +79,7 @@ def train_(model, trainloader: torch.utils.data.DataLoader, criterion, optimizer
 
 
 # def train(nn: str, dataset: str, checkpoint: str, la_steps: int, la_alpha: float, n_holes: int, length: int):
-def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
+def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int, la_steps: int, la_alpha: float):
     now = datetime.now()
     date_time = now.strftime("%m-%d-%Y_%H-%M-%S")
     checkpoints = f'checkpoints/{nn}/{dataset}/{date_time}'
@@ -104,8 +105,8 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int):
     showLayers(model, shape)    
     # optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-1, momentum=0.9, nesterov=True, weight_decay=5e-4)
+    optimizer = Lookahead(optimizer, k=la_steps, alpha=la_alpha)
     scheduler = MultiStepLR(optimizer, milestones=[20+40*x for x in range(1, 25)], gamma=0.1)
-    # optimizer = Lookahead(optimizer, la_steps=la_steps, la_alpha=la_alpha)
 
     # optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-5)
     # scheduler = CosineAnnealingWarmupRestarts(optimizer,

@@ -21,10 +21,10 @@ parser.add_argument('-M', '--mode', default="measure", type=str, choices=mode_op
 # train args
 parser.add_argument('-t', '--train_dataset', default="cifar10", type=str, choices=ID_options,
                     help='train dataset (name in torchvision.models or folder name in ./data)')
-# parser.add_argument('-s', '--la_steps', default=5, type=int,
-#                     help='steps for Lookahead')
-# parser.add_argument('-a', '--la_alpha', default=0.5, type=float,
-#                     help='alpha for Lookahead')
+parser.add_argument('-s', '--la_steps', default=5, type=int,
+                    help='steps for Lookahead')
+parser.add_argument('-a', '--la_alpha', default=0.5, type=float,
+                    help='alpha for Lookahead')
 parser.add_argument('-N', '--n_holes', type=int, default=1,
                     help='number of holes to cut out from image')
 parser.add_argument('-l', '--length', type=int, default=16,
@@ -42,7 +42,7 @@ parser.add_argument('-c', '--checkpoint', type=str,
 # measure args
 parser.add_argument('-m', '--method', default="knn", type=str, choices=method_options,
                     help='out-of-distribution method - lowercase')
-parser.add_argument('-a', '--method_args', nargs='+', default=["50"], type=str,
+parser.add_argument('-A', '--method_args', nargs='+', default=["50"], type=str,
                     help='out-of-distribution method arguments')
 parser.add_argument('-f', '--feature_datasets', nargs='+', default=["mnist", "cifar10", "cifar100"], type=str, choices=OOD_options,
                     help='datasets to extract features starting with id dataset (names in torchvision.models or folder names in ./data)')
@@ -53,7 +53,7 @@ def main():
     args = parser.parse_args()
     if args.mode == 'train':
         # train(args.nn, args.train_dataset, args.checkpoint, args.la_steps, args.la_alpha, args.n_holes, args.length)
-        train(nn=args.nn, dataset=args.train_dataset, checkpoint=args.checkpoint, n_holes=args.n_holes, length=args.length)
+        train(nn=args.nn, dataset=args.train_dataset, checkpoint=args.checkpoint, n_holes=args.n_holes, length=args.length, la_steps=args.la_steps, la_alpha=args.la_alpha)
     elif args.mode == 'extract':
         if args.checkpoint is not None:
             extractFeatures(nn=args.nn, in_dataset=args.in_dataset, ood_datasets=args.ood_datasets, checkpoint=args.checkpoint)
