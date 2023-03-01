@@ -108,15 +108,6 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int, la_
     optimizer = Lookahead(optimizer, k=la_steps, alpha=la_alpha)
     scheduler = MultiStepLR(optimizer, milestones=[20+40*x for x in range(1, 25)], gamma=0.1)
 
-    # optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-5)
-    # scheduler = CosineAnnealingWarmupRestarts(optimizer,
-    #                                         first_cycle_steps=200,
-    #                                         cycle_mult=1.0,
-    #                                         max_lr=0.1,
-    #                                         min_lr=0.0001,
-    #                                         warmup_steps=50,
-    #                                         gamma=1.0)
-
     if checkpoint != '' and checkpoint is not None:
         path = f'./checkpoints/{checkpoint}'
         ckpt = torch.load(path)

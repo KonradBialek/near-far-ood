@@ -60,8 +60,11 @@ def KNN(data: pd.DataFrame, method_args):
     #     print("{:4}/{:4} images processed, {:.1f} seconds used.".format(j+1-1000, N-1000, time.time()-t0))
     #     t0 = time.time()
 
-def MSP(df: pd.DataFrame):
-    pass
+def MSP(data: pd.DataFrame, method_args):
+    score = torch.softmax(torch.tensor(data.values), dim=1)
+    conf, _ = torch.max(score, dim=1)
+    return conf
+
 
 def MDS(df: pd.DataFrame):
     pass
@@ -88,9 +91,8 @@ def measure(nn: str, method: str, feature_datasets: list, method_args: list):
         # if method == 'odin':
         #     # raise NotImplementedError(f"{method} not implenented")
         #     ODIN(df)
-        # if method == 'msp':
-        #     raise NotImplementedError(f"{method} not implenented")
-        #     MSP(df)
+        if method == 'msp':
+            output = MSP(data, method_args)
         # if method == 'mds':
         #     raise NotImplementedError(f"{method} not implenented")
         #     MDS(df)
@@ -100,7 +102,6 @@ def measure(nn: str, method: str, feature_datasets: list, method_args: list):
 
         data["class"] = label
         data[method] = output
-        # print(data)
-        data.to_csv(path[:-4]+'_distance.csv', mode='w', index=False, header=True)
+        data.to_csv(path[:-4]+'_'+method+'.csv', mode='w', index=False, header=True)
 
     raise NotImplementedError()
