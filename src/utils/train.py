@@ -1,7 +1,6 @@
 import os
 import torch
 from datetime import datetime
-# from .lookahead_pytorch import Lookahead
 from torch.optim.lr_scheduler import MultiStepLR
 from torch_optimizer import Lookahead
 
