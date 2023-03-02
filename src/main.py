@@ -2,12 +2,12 @@ import argparse
 from warnings import warn
 from utils.extractFeatures import extractFeatures
 from utils.train import train
-from utils.measure import measure
+from utils.measure import measure, measure_
 
 
 model_options = ['resnet18', 'resnet34', 'renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2', 'densenet121', 'densenet161', 'densenet169', 'densenet201']
 OOD_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
-ID_options = ['cifar10', 'cifar100', 'places365', 'svhn', 'mnist', 'fashionmnist']
+train_options = ['cifar10', 'cifar100', 'mnist']
 method_options = ['knn', 'odin', 'msp', 'mds', 'mls']
 mode_options = ['train', 'extract', 'measure']
 
@@ -21,7 +21,7 @@ parser.add_argument('-f', '--process_datasets', nargs='+', default=["mnist", "ci
                     help='datasets to extract features or measure distance starting with id dataset (names in torchvision.models or folder names in ./data)')
 
 # train args
-parser.add_argument('-t', '--train_dataset', default="cifar10", type=str, choices=ID_options,
+parser.add_argument('-t', '--train_dataset', default="cifar10", type=str, choices=train_options,
                     help='train dataset (name in torchvision.models or folder name in ./data)')
 parser.add_argument('-s', '--la_steps', default=5, type=int,
                     help='steps for Lookahead')
@@ -59,7 +59,10 @@ def main():
         else:
             print('Provide checkpoint file.')
     elif args.mode == 'measure':
-            measure(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args)
+            if args.method in ['msp', 'knn']:
+                measure(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args)
+            else:
+                measure_(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args, checkpoint=args.checkpoint)
     else:
          warn("Wrong mode.")
 

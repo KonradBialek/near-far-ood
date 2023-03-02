@@ -3,9 +3,8 @@ import pandas as pd
 import numpy as np
 from .utils import dataloader, getNN, isCuda, getShape, getNormalization, loadNNWeights, save_scores,  showLayers
 import faiss
+from torch.utils.data import DataLoader
 
-temper = 1000
-noiseMagnitude1 = 0.0014
 criterion = torch.nn.CrossEntropyLoss()
 normalizer = lambda x: x / np.linalg.norm(x, axis=-1, keepdims=True) + 1e-10
 
@@ -20,57 +19,55 @@ def KNN(data: pd.DataFrame, method_args: list):
     index.add(np.float32(activation_log))
 
     feature_normed = np.float32(np.ascontiguousarray(normalizer(data)))
-    D, _ = index.search(
-        feature_normed,
-        K,
-    )
+    D, _ = index.search(feature_normed, K)
     return torch.from_numpy(D[:, -1])
     
-# def ODIN(nnOutputs: pd.DataFrame):
-#     # Using temperature scaling
-#     outputs = outputs / temper
+def ODIN(data, model, method_args: list):
+    temperature = int(method_args[0])
+    noise = float(method_args[1])
 
+    data.requires_grad = True
+    output = model(data)
+    criterion = torch.nn.CrossEntropyLoss()
+    labels = output.detach().argmax(axis=1)
 
-    # # Calculating the perturbation we need to add, that is,
-    # # the sign of gradient of cross entropy loss w.r.t. input
-    # maxIndexTemp = np.argmax(nnOutputs)
-    # labels = Variable(torch.LongTensor([maxIndexTemp]).cuda())
-    # loss = criterion(outputs, labels)
-    # loss.backward()
-    
-    # # Normalizing the gradient to binary in {0, 1}
-    # gradient =  (torch.ge(inputs.grad.data, 0))
-    # gradient = (gradient.float() - 0.5) * 2
-    # # Normalizing the gradient to the same space of image
-    # gradient[0][0] = (gradient[0][0] )/(63.0/255.0)
-    # gradient[0][1] = (gradient[0][1] )/(62.1/255.0)
-    # gradient[0][2] = (gradient[0][2])/(66.7/255.0)
-    # # Adding small perturbations to images
-    # tempInputs = torch.add(inputs.data,  -noiseMagnitude1, gradient)
-    # outputs = net1(Variable(tempInputs))
-    # outputs = outputs / temper
-    # # Calculating the confidence after adding perturbations
-    # nnOutputs = outputs.data.cpu()
-    # nnOutputs = nnOutputs.numpy()
-    # nnOutputs = nnOutputs[0]
-    # nnOutputs = nnOutputs - np.max(nnOutputs)
-    # nnOutputs = np.exp(nnOutputs)/np.sum(np.exp(nnOutputs))
-    # g2.write("{}, {}, {}\n".format(temper, noiseMagnitude1, np.max(nnOutputs)))
-    # if j % 100 == 99:
-    #     print("{:4}/{:4} images processed, {:.1f} seconds used.".format(j+1-1000, N-1000, time.time()-t0))
-    #     t0 = time.time()
+    # Using temperature scaling
+    output = output / temperature
+
+    loss = criterion(output, labels)
+    loss.backward()
+
+    # Normalizing the gradient to binary in {0, 1}
+    gradient = torch.ge(data.grad.detach(), 0)
+    gradient = (gradient.float() - 0.5) * 2
+
+    # Scaling values taken from original code
+    gradient[:, 0] = (gradient[:, 0]) / (63.0 / 255.0)
+    gradient[:, 1] = (gradient[:, 1]) / (62.1 / 255.0)
+    gradient[:, 2] = (gradient[:, 2]) / (66.7 / 255.0)
+
+    # Adding small perturbations to images
+    tempInputs = torch.add(data.detach(), gradient, alpha=-noise)
+    output = model(tempInputs)
+    output = output / temperature
+
+    # Calculating the confidence after adding perturbations
+    nnOutput = output.detach()
+    nnOutput = nnOutput - nnOutput.max(dim=1, keepdims=True).values
+    nnOutput = nnOutput.exp() / nnOutput.exp().sum(dim=1, keepdims=True)
+
+    return nnOutput.max(dim=1)[0]
 
 def MSP(data: pd.DataFrame, method_args: list):
     score = torch.softmax(torch.tensor(data.values), dim=1)
-    conf, _ = torch.max(score, dim=1)
-    return conf
+    return torch.max(score, dim=1)[0]
 
 
-def MDS(df: pd.DataFrame):
+def MDS(data: DataLoader, model, method_args: list):
     pass
 
-def MLS(df: pd.DataFrame):
-    pass
+# def MLS(df: pd.DataFrame):
+#     pass
 
 def measure(nn: str, method: str, datasets: list, method_args: list):
     for i, dataset in enumerate(datasets):
@@ -81,21 +78,11 @@ def measure(nn: str, method: str, datasets: list, method_args: list):
         path = f'./features/{file}'
         data = pd.read_csv(path)
         label = data.pop('class')
-        # model = loadNNWeights(nn, checkpoint)
-        # postprocessor = get_postprocessor(method, method_args)
 
         if method == 'knn':
             output = KNN(data, method_args)
-            # print(output)
-
-        # if method == 'odin':
-        #     # raise NotImplementedError(f"{method} not implenented")
-        #     ODIN(df)
         if method == 'msp':
             output = MSP(data, method_args)
-        # if method == 'mds':
-        #     raise NotImplementedError(f"{method} not implenented")
-        #     MDS(df)
         # if method == 'mls':
         #     raise NotImplementedError(f"{method} not implenented")
         #     MLS(df)
@@ -104,4 +91,48 @@ def measure(nn: str, method: str, datasets: list, method_args: list):
         data[method] = output
         data.to_csv(path[:-4]+'_'+method+'.csv', mode='w', index=False, header=True)
 
-    raise NotImplementedError()
+
+def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint):
+    model = loadNNWeights(nn, checkpoint)
+
+    datasetLoaders = {}
+    for dataset in datasets:
+        loaders = dataloader(dataset, postprocess=True)
+        datasetLoaders[dataset] = {'train': loaders[0], 'val': loaders[1], 'test': loaders[2]}
+    
+    datasetLoaders2 = {}
+    for i, split in enumerate(datasetLoaders[datasets[0]]):
+        datasetLoaders2[split] = {}
+        for dataset in datasetLoaders:
+            datasetLoaders2[split][dataset] = loaders[i]
+
+    datasetLoaders2['nearood'] = datasetLoaders['cifar100']
+    datasetLoaders2['farood'] = datasetLoaders['mnist']
+
+    for dataset, (_, loader) in enumerate(datasetLoaders.items()):
+        conf, gt = inference(model, loader['val'], method, method_args)
+        save_name = datasets[dataset]
+        if dataset > 0:
+            gt = -1 * np.ones_like(gt)  # hard set to -1 as ood
+            save_name += '_OoD'
+        save_scores(conf, gt, save_name)
+
+
+def inference(model: torch.nn.Module, data_loader: DataLoader, method: str, method_args: list):
+    conf_list, label_list = [], []
+    for batch in data_loader:
+        data = batch[0].cuda()
+        label = batch[1].cuda()
+        if method == 'odin':
+            conf = ODIN(data, model, method_args)
+        elif method == 'mds':
+            conf = MDS(data, model, method_args)
+        for idx in range(len(data)):
+            conf_list.append(conf[idx].cpu().tolist())
+            label_list.append(label[idx].cpu().tolist())
+
+    # convert values into numpy array
+    conf_list = np.array(conf_list)
+    label_list = np.array(label_list, dtype=int)
+
+    return conf_list, label_list

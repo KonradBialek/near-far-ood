@@ -131,14 +131,14 @@ def getDataset(dataset: str, transform = None, transform_val = None):
         trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
         valset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_val)
     
-    elif dataset == 'places365': # todo small=True - 256x256 zamiast high-resolution?
+    elif dataset == 'places365':
         trainset = torchvision.datasets.Places365(root='./data', download=True, transform=transform, small=True)
         valset = torchvision.datasets.Places365(root='./data', split='val', download=True, transform=transform_val, small=True)
     
     elif dataset == 'svhn':
         trainset = torchvision.datasets.SVHN(root='./data', download=True, transform=transform)
         testset = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform_val)
-        extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform_val)
+        # extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform_val)
         # trainset = torch.utils.data.ConcatDataset([trainset, extraset])
     else:
         dataset_path = f'./data/{dataset}/'
@@ -335,10 +335,9 @@ def loadNNWeights(nn: str, checkpoint: str):
     return model
 
 
-def save_scores(pred, conf, gt, save_name):
+def save_scores(conf, gt, save_name):
     save_dir = os.path.join('./results', 'scores1')
     os.makedirs(save_dir, exist_ok=True)
     np.savez(os.path.join(save_dir, save_name),
-                pred=pred,
                 conf=conf,
                 label=gt)
