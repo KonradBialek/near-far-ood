@@ -110,6 +110,7 @@ def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = F
 
 def getDataset(dataset: str, transform = None, transform_val = None):
     valset = testset = extraset = None
+    os.makedirs('./data', exist_ok=True)
     if dataset == 'cifar10':
         trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
         valset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)

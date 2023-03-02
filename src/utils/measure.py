@@ -9,6 +9,7 @@ criterion = torch.nn.CrossEntropyLoss()
 normalizer = lambda x: x / np.linalg.norm(x, axis=-1, keepdims=True) + 1e-10
 
 def KNN(data: pd.DataFrame, method_args: list):
+    # setup
     K = int(method_args[0])
     data = data.to_numpy()
     activation_log = normalizer(data.reshape(
@@ -18,14 +19,17 @@ def KNN(data: pd.DataFrame, method_args: list):
     activation_log = np.ascontiguousarray(activation_log)
     index.add(np.float32(activation_log))
 
+    # process
     feature_normed = np.float32(np.ascontiguousarray(normalizer(data)))
     D, _ = index.search(feature_normed, K)
     return torch.from_numpy(D[:, -1])
     
 def ODIN(data, model, method_args: list):
+    # setup
     temperature = int(method_args[0])
     noise = float(method_args[1])
 
+    # process
     data.requires_grad = True
     output = model(data)
     criterion = torch.nn.CrossEntropyLoss()
@@ -58,8 +62,12 @@ def ODIN(data, model, method_args: list):
 
     return nnOutput.max(dim=1)[0]
 
-def MSP(data: pd.DataFrame, method_args: list):
-    score = torch.softmax(torch.tensor(data.values), dim=1)
+def MSP(data, model = None):
+    if isinstance(data, pd.DataFrame):
+        score = torch.softmax(torch.tensor(data.values), dim=1)
+    else:
+        output = model(data)
+        score = torch.softmax(output, dim=1)
     return torch.max(score, dim=1)[0]
 
 
@@ -82,7 +90,7 @@ def measure(nn: str, method: str, datasets: list, method_args: list):
         if method == 'knn':
             output = KNN(data, method_args)
         if method == 'msp':
-            output = MSP(data, method_args)
+            output = MSP(data)
         # if method == 'mls':
         #     raise NotImplementedError(f"{method} not implenented")
         #     MLS(df)
@@ -92,7 +100,7 @@ def measure(nn: str, method: str, datasets: list, method_args: list):
         data.to_csv(path[:-4]+'_'+method+'.csv', mode='w', index=False, header=True)
 
 
-def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint):
+def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
     model = loadNNWeights(nn, checkpoint)
 
     datasetLoaders = []
@@ -104,7 +112,7 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
         conf, gt = inference(model, loader, method, method_args)
         save_name = datasets[dataset]
         if dataset > 0:
-            gt = -1 * np.ones_like(gt)  # hard set to -1 as ood
+            gt = -1 * np.ones_like(gt)
             save_name += '_OoD'
         save_scores(conf, gt, save_name)
 
@@ -118,11 +126,12 @@ def inference(model: torch.nn.Module, data_loader: DataLoader, method: str, meth
             conf = ODIN(data, model, method_args)
         elif method == 'mds':
             conf = MDS(data, model, method_args)
+        elif method == 'msp':
+            conf = MSP(data, model)
         for idx in range(len(data)):
             conf_list.append(conf[idx].cpu().tolist())
             label_list.append(label[idx].cpu().tolist())
 
-    # convert values into numpy array
     conf_list = np.array(conf_list)
     label_list = np.array(label_list, dtype=int)
 
