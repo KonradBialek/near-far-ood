@@ -23,15 +23,6 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
     rgb = True
     headers = generateHeaders(num_features)
     os.makedirs('./features/', exist_ok=True)
-    print(f'extracting {datasets[0]}')
-    touchCSV(path, headers)
-    shape = getShape(datasets[0])
-    normalization = getNormalization(datasets[0], True)
-    showLayers(model, shape) 
-    testloader = dataloader(datasets[0], shape[:2], rgb, False, True, 1, 16, normalization)
-    path = f'./features/{datasets[0]}_{nn}_ID.csv'
-    extract(model, testloader, path, use_gpu)
-    
 
     for i, dataset in enumerate(datasets):
         print(f'extracting {dataset}')
@@ -43,6 +34,7 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
             path = f'./features/{dataset}_{nn}_OoD.csv'
             extract(model, testloader, path, use_gpu, False)
         else:
+            showLayers(model, shape) 
             testloader = dataloader(dataset, shape[:2], rgb, False, True, 1, 16, normalization)
             path = f'./features/{dataset}_{nn}_ID.csv'
             extract(model, testloader, path, use_gpu, True)
