@@ -62,7 +62,10 @@ def main():
             if args.method in ['msp', 'knn']:
                 measure(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args)
             else:
-                measure_(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args, checkpoint=args.checkpoint)
+                if args.checkpoint is not None:
+                    measure_(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args, checkpoint=args.checkpoint)
+                else:
+                    print('Provide checkpoint file.')
     else:
          warn("Wrong mode.")
 
