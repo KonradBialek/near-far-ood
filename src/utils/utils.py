@@ -138,7 +138,7 @@ def getDataset(dataset: str, transform = None, transform_val = None):
     elif dataset == 'svhn':
         trainset = torchvision.datasets.SVHN(root='./data', download=True, transform=transform)
         testset = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform_val)
-        # extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform_val)
+        extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform_val)
         # trainset = torch.utils.data.ConcatDataset([trainset, extraset])
     else:
         dataset_path = f'./data/{dataset}/'

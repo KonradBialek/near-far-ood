@@ -95,22 +95,13 @@ def measure(nn: str, method: str, datasets: list, method_args: list):
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint):
     model = loadNNWeights(nn, checkpoint)
 
-    datasetLoaders = {}
+    datasetLoaders = []
     for dataset in datasets:
-        loaders = dataloader(dataset, postprocess=True)
-        datasetLoaders[dataset] = {'train': loaders[0], 'val': loaders[1], 'test': loaders[2]}
-    
-    datasetLoaders2 = {}
-    for i, split in enumerate(datasetLoaders[datasets[0]]):
-        datasetLoaders2[split] = {}
-        for dataset in datasetLoaders:
-            datasetLoaders2[split][dataset] = loaders[i]
+        _, valloader, _ = dataloader(dataset, postprocess=True)
+        datasetLoaders.append(valloader)
 
-    datasetLoaders2['nearood'] = datasetLoaders['cifar100']
-    datasetLoaders2['farood'] = datasetLoaders['mnist']
-
-    for dataset, (_, loader) in enumerate(datasetLoaders.items()):
-        conf, gt = inference(model, loader['val'], method, method_args)
+    for dataset, loader in enumerate(datasetLoaders):
+        conf, gt = inference(model, loader, method, method_args)
         save_name = datasets[dataset]
         if dataset > 0:
             gt = -1 * np.ones_like(gt)  # hard set to -1 as ood
