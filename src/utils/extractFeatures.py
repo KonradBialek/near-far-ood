@@ -15,7 +15,7 @@ def extract(model, testloader: torch.utils.data.DataLoader, path: str, use_gpu: 
         outputs.to_csv(path, mode='a', index=False, header=False)
 
 
-def extractFeatures(nn: str, in_dataset: str, ood_datasets: list, checkpoint: str):
+def extractFeatures(nn: str, datasets: list, checkpoint: str):
     use_gpu = isCuda()
     model = loadNNWeights(nn, checkpoint)
     # try:
@@ -31,17 +31,17 @@ def extractFeatures(nn: str, in_dataset: str, ood_datasets: list, checkpoint: st
     rgb = True
     headers = generateHeaders(num_features)
     os.makedirs('./features/', exist_ok=True)
-    shape = getShape(in_dataset)
-    normalization = getNormalization(in_dataset, True)
+    shape = getShape(datasets[0])
+    normalization = getNormalization(datasets[0], True)
     showLayers(model, shape) 
-    testloader = dataloader(in_dataset, shape[:2], rgb, False, True, 1, 16, normalization)
-    path = f'./features/{in_dataset}_{nn}_ID.csv'
+    testloader = dataloader(datasets[0], shape[:2], rgb, False, True, 1, 16, normalization)
+    path = f'./features/{datasets[0]}_{nn}_ID.csv'
     touchCSV(path, headers)
-    print(f'extracting {in_dataset}')
+    print(f'extracting {datasets[0]}')
     extract(model, testloader, path, use_gpu)
     
 
-    for ood_dataset in ood_datasets:
+    for ood_dataset in datasets[1:]:
         shape = getShape(ood_dataset)
         normalization = getNormalization(ood_dataset, True)
         testloader = dataloader(ood_dataset, shape[:2], rgb, False, False, 1, 16, normalization)

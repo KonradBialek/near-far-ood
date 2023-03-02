@@ -9,7 +9,7 @@ noiseMagnitude1 = 0.0014
 criterion = torch.nn.CrossEntropyLoss()
 normalizer = lambda x: x / np.linalg.norm(x, axis=-1, keepdims=True) + 1e-10
 
-def KNN(data: pd.DataFrame, method_args):
+def KNN(data: pd.DataFrame, method_args: list):
     K = int(method_args[0])
     data = data.to_numpy()
     activation_log = normalizer(data.reshape(
@@ -60,7 +60,7 @@ def KNN(data: pd.DataFrame, method_args):
     #     print("{:4}/{:4} images processed, {:.1f} seconds used.".format(j+1-1000, N-1000, time.time()-t0))
     #     t0 = time.time()
 
-def MSP(data: pd.DataFrame, method_args):
+def MSP(data: pd.DataFrame, method_args: list):
     score = torch.softmax(torch.tensor(data.values), dim=1)
     conf, _ = torch.max(score, dim=1)
     return conf
@@ -72,8 +72,8 @@ def MDS(df: pd.DataFrame):
 def MLS(df: pd.DataFrame):
     pass
 
-def measure(nn: str, method: str, feature_datasets: list, method_args: list):
-    for i, dataset in enumerate(feature_datasets):
+def measure(nn: str, method: str, datasets: list, method_args: list):
+    for i, dataset in enumerate(datasets):
         if i == 0:
             file = f'{dataset}_{nn}_ID.csv'
         else:
