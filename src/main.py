@@ -32,12 +32,7 @@ parser.add_argument('-N', '--n_holes', type=int, default=1,
 parser.add_argument('-l', '--length', type=int, default=16,
                     help='length of the holes')
 
-# extract args
-# parser.add_argument('-i', '--in_dataset', default="cifar10", type=str, choices=ID_options,
-#                     help='in-distribution dataset (name in torchvision.models or folder name in ./data)')
-# parser.add_argument('-o', '--ood_datasets', nargs='+', default=["mnist", "cifar100"], type=str, choices=OOD_options,
-#                     help='out-of-distribution datasets (names in torchvision.models or folder names in ./data)')
-# required in extract, optional in train:
+# required in extract, optional in train and measure:
 parser.add_argument('-c', '--checkpoint', type=str,
                     help='checkpoint file for resuming training or extracting features (path/name in ./checkpoints)')
 

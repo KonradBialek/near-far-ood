@@ -26,16 +26,17 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
 
     for i, dataset in enumerate(datasets):
         print(f'extracting {dataset}')
-        touchCSV(path, headers)
         shape = getShape(dataset)
         normalization = getNormalization(dataset, True)
         if i > 0:
             testloader = dataloader(dataset, shape[:2], rgb, False, False, 1, 16, normalization)
             path = f'./features/{dataset}_{nn}_OoD.csv'
+            touchCSV(path, headers)
             extract(model, testloader, path, use_gpu, False)
         else:
             showLayers(model, shape) 
             testloader = dataloader(dataset, shape[:2], rgb, False, True, 1, 16, normalization)
             path = f'./features/{dataset}_{nn}_ID.csv'
+            touchCSV(path, headers)
             extract(model, testloader, path, use_gpu, True)
             
