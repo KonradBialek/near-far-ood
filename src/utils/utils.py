@@ -300,17 +300,6 @@ def getNumFeatures(nn: str):
     else:
         raise NotImplementedError(f'Network {nn} is not known.')
 
-def touchCSV(path: str, headers):
-    with open(path, 'w') as file:
-        file.writelines(",".join(headers) + "\n")
-
-def generateHeaders(num_headers: int):
-    headers = []  
-    for header in range(1,num_headers + 1):
-        headers.append(f"{header}_feature")
-    
-    headers.append("class")
-    return headers
 
 def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints: str, nn: str, flag: int):
     torch.save({
@@ -336,9 +325,8 @@ def loadNNWeights(nn: str, checkpoint: str):
     return model
 
 
-def save_scores(conf, gt, save_name):
-    save_dir = os.path.join('./results', 'scores1')
+def save_scores(data, labels, save_name, save_dir):
     os.makedirs(save_dir, exist_ok=True)
     np.savez(os.path.join(save_dir, save_name),
-                conf=conf,
-                label=gt)
+                data=data,
+                labels=labels)

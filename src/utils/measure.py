@@ -8,10 +8,9 @@ from torch.utils.data import DataLoader
 criterion = torch.nn.CrossEntropyLoss()
 normalizer = lambda x: x / np.linalg.norm(x, axis=-1, keepdims=True) + 1e-10
 
-def KNN(data: pd.DataFrame, method_args: list):
+def KNN(data: np.ndarray, method_args: list):
     # setup
     K = int(method_args[0])
-    data = data.to_numpy()
     activation_log = normalizer(data.reshape(
                     data.shape[0], data.shape[1], -1).mean(2))
 
@@ -63,8 +62,8 @@ def ODIN(data, model, method_args: list):
     return nnOutput.max(dim=1)[0]
 
 def MSP(data, model = None):
-    if isinstance(data, pd.DataFrame):
-        score = torch.softmax(torch.tensor(data.values), dim=1)
+    if isinstance(data, np.ndarray):
+        score = torch.softmax(torch.tensor(data), dim=1)
     else:
         output = model(data)
         score = torch.softmax(output, dim=1)
@@ -80,12 +79,12 @@ def MDS(data: DataLoader, model, method_args: list):
 def measure(nn: str, method: str, datasets: list, method_args: list):
     for i, dataset in enumerate(datasets):
         if i == 0:
-            file = f'{dataset}_{nn}_ID.csv'
+            file = f'{dataset}_{nn}_ID.npz'
         else:
-            file = f'{dataset}_{nn}_OoD.csv'
+            file = f'{dataset}_{nn}_OoD.npz'
         path = f'./features/{file}'
-        data = pd.read_csv(path)
-        label = data.pop('class')
+        data = np.load(path)['data']
+        label = np.load(path)['labels']
 
         if method == 'knn':
             output = KNN(data, method_args)
@@ -94,10 +93,8 @@ def measure(nn: str, method: str, datasets: list, method_args: list):
         # if method == 'mls':
         #     raise NotImplementedError(f"{method} not implenented")
         #     MLS(df)
-
-        data["class"] = label
-        data[method] = output
-        data.to_csv(path[:-4]+'_'+method+'.csv', mode='w', index=False, header=True)
+        save_scores(output, label, file[:-4]+'_'+method, './features')
+        # np.save(path[:-4]+'_'+method, output)
 
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
@@ -114,7 +111,8 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
         if dataset > 0:
             gt = -1 * np.ones_like(gt)
             save_name += '_OoD'
-        save_scores(conf, gt, save_name)
+        # np.save('./features/'+save_name+'_'+method, output)
+        save_scores(conf, gt, save_name, './features/scores')
 
 
 def inference(model: torch.nn.Module, data_loader: DataLoader, method: str, method_args: list):
