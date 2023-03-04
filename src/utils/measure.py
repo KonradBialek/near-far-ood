@@ -109,7 +109,7 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
         conf, gt = inference(model, loader, method, method_args)
         save_name = datasets[dataset]
         if dataset > 0:
-            gt = -1 * np.ones_like(gt)
+            gt = -dataset * np.ones_like(gt)
             save_name += '_OoD'
         # np.save('./features/'+save_name+'_'+method, output)
         save_scores(conf, gt, save_name, './features/scores')
