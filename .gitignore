@@ -133,3 +133,4 @@ data/
 checkpoints/
 runs/
 features/
+*.pdf
