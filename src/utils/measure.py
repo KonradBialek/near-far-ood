@@ -1,3 +1,4 @@
+import os
 import torch
 import pandas as pd
 import numpy as np
@@ -77,27 +78,25 @@ def MDS(data: DataLoader, model, method_args: list):
 #     pass
 
 def measure(nn: str, method: str, datasets: list, method_args: list):
-    for i, dataset in enumerate(datasets):
-        if i == 0:
-            file = f'{dataset}_{nn}_ID.npz'
-        else:
-            file = f'{dataset}_{nn}_OoD.npz'
-        path = f'./features/{file}'
-        data = np.load(path)['data']
-        label = np.load(path)['labels']
+    for file in os.listdir('./features/'):
+        if file.endswith('.npz'):
+            path = f'./features/{file}'
+            data = np.load(path)['data']
+            label = np.load(path)['labels']
 
-        if method == 'knn':
-            output = KNN(data, method_args)
-        if method == 'msp':
-            output = MSP(data)
-        # if method == 'mls':
-        #     raise NotImplementedError(f"{method} not implenented")
-        #     MLS(df)
-        save_scores(output, label, file[:-4]+'_'+method, './features')
-        # np.save(path[:-4]+'_'+method, output)
+            if method == 'knn':
+                output = KNN(data, method_args)
+            if method == 'msp':
+                output = MSP(data)
+            # if method == 'mls':
+            #     raise NotImplementedError(f"{method} not implenented")
+            #     MLS(df)
+            save_scores(output, label, file[:-4]+'_'+method, './features')
+            # np.save(path[:-4]+'_'+method, output)
 
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
+    outputs, labels = [], []
     model = loadNNWeights(nn, checkpoint)
 
     datasetLoaders = []
@@ -105,14 +104,18 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
         _, valloader, _ = dataloader(dataset, postprocess=True)
         datasetLoaders.append(valloader)
 
+    save_name = nn
     for dataset, loader in enumerate(datasetLoaders):
         conf, gt = inference(model, loader, method, method_args)
-        save_name = datasets[dataset]
+        save_name += f'_{datasets[dataset]}'
         if dataset > 0:
             gt = -dataset * np.ones_like(gt)
-            save_name += '_OoD'
+        outputs.append(conf)
+        labels.append(gt)
         # np.save('./features/'+save_name+'_'+method, output)
-        save_scores(conf, gt, save_name, './features/scores')
+
+    outputs, labels = np.concatenate(outputs, axis=0), np.concatenate(labels, axis=0)
+    save_scores(conf, gt, save_name+'_'+method, './features')
 
 
 def inference(model: torch.nn.Module, data_loader: DataLoader, method: str, method_args: list):

@@ -21,10 +21,13 @@ def extract(model, testloader: torch.utils.data.DataLoader, save_name: str, use_
         labels = labels.numpy()
     else:
         labels = -i * np.ones(len(outputs))
-    save_scores(outputs, labels, save_name=save_name, save_dir='./features')
+    outputs_.append(outputs)
+    labels_.append(labels)
 
 
 def extractFeatures(nn: str, datasets: list, checkpoint: str):
+    global outputs_, labels_
+    outputs_, labels_ = [], []
     use_gpu = isCuda()
     model = loadNNWeights(nn, checkpoint)
     
@@ -32,17 +35,20 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
     rgb = True
     os.makedirs('./features/', exist_ok=True)
 
+    save_name = nn
     for i, dataset in enumerate(datasets):
         print(f'extracting {dataset}')
         shape = getShape(dataset)
         normalization = getNormalization(dataset, True)
+        save_name += f'_{dataset}'
         if i > 0:
             testloader = dataloader(dataset, shape[:2], rgb, False, False, 1, 16, normalization)
-            save_name = f'{dataset}_{nn}_OoD'
             extract(model, testloader, save_name, use_gpu, False, i)
         else:
             showLayers(model, shape) 
             testloader = dataloader(dataset, shape[:2], rgb, False, True, 1, 16, normalization)
-            save_name = f'{dataset}_{nn}_ID'
             extract(model, testloader, save_name, use_gpu, True, i)
+    
+    outputs_, labels_ = np.concatenate(outputs_, axis=0), np.concatenate(labels_, axis=0)
+    save_scores(outputs_, labels_, save_name=save_name, save_dir='./features')
             
