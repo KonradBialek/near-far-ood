@@ -23,12 +23,6 @@ def extract(model, testloader: torch.utils.data.DataLoader, save_name: str, use_
         labels = -i * np.ones(len(outputs))
     save_scores(outputs, labels, save_name=save_name, save_dir='./features')
 
-        # pd
-        # outputs = pd.DataFrame(outputs.data.cpu()).astype("float")
-        # labels = pd.Series(labels.data.cpu()).astype("int")
-        # outputs[len(outputs.columns)] = labels if ID else -i
-        # outputs.to_csv(path, mode='a', index=False, header=False)
-
 
 def extractFeatures(nn: str, datasets: list, checkpoint: str):
     use_gpu = isCuda()
