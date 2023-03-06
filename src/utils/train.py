@@ -5,8 +5,6 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch_optimizer import Lookahead
 
 from .utils import getNN, runTensorboard, dataloader, AverageMeter, isCuda, saveModel, showLayers, updateWriter, getShape, getNormalization
-# from cutmix.utils import CutMixCrossEntropyLoss
-# from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
 
 def validate_(model, valloader, testloader, criterion, epoch, use_gpu: bool):
     with torch.no_grad():
@@ -62,7 +60,6 @@ def train_(model, trainloader: torch.utils.data.DataLoader, criterion, optimizer
 
         predicted = torch.max(outputs.data, 1)[1]
         total += labels.size(0)
-        # labels = torch.max(labels.data, 1)[1]
         correct += (predicted == labels).sum().item()
 
 
@@ -91,18 +88,16 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int, la_
     os.makedirs(checkpoints, exist_ok=True)
     use_gpu = isCuda()
     runTensorboard()
-    trainloader, valloader, testloader = dataloader(dataset, shape[:2], None, True, None, n_holes, length, normalization)
+    trainloader, valloader, testloader = dataloader(dataset, size=shape[:2], rgb=True, train=True, ID=None, n_holes=n_holes, length=length, normalization=normalization)
 
     model = getNN(nn, dataset)
     criterion = torch.nn.CrossEntropyLoss()
-    # criterion = CutMixCrossEntropyLoss(True)
 
     if use_gpu: 
         criterion = criterion.cuda()
         model = model.cuda()
     
     showLayers(model, shape)    
-    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-1, momentum=0.9, nesterov=True, weight_decay=5e-4)
     optimizer = Lookahead(optimizer, k=la_steps, alpha=la_alpha)
     scheduler = MultiStepLR(optimizer, milestones=[20+40*x for x in range(1, 25)], gamma=0.1)
@@ -112,6 +107,7 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int, la_
         ckpt = torch.load(path)
         model.load_state_dict(ckpt['model_state_dict'])
         optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        scheduler.load_state_dict(ckpt['scheduler_state_dict'])
         epoch = ckpt['epoch']
         model.train()
 

@@ -12,7 +12,6 @@ import torchvision
 from torchsummary import summary
 from .cutout import Cutout
 import pandas as pd
-# from cutmix.cutmix import CutMix
 
 BATCH_SIZE = 256
 writer = SummaryWriter()
@@ -36,9 +35,25 @@ def updateWriter(mode: str, loss: float, acc: float, epoch: int):
     writer.add_scalar(f"acc/{mode}", acc, epoch)
 
 def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False, postprocess = False):
+    '''
+    Load dataset.
+
+    Args:
+        dataset (str): Name of dataset to load.
+        size (int, int): Size of output images.
+        rgb (bool): If images should be colorful.
+        train (bool): If in train mode.
+        ID (bool): If in-distribution dataset.
+        n_holes (int): Number of holes to cut out from image for Cutout.
+        length (int): Length of the holes for Cutout.
+        normalization (list[list[float]]): Mean and standard deviation for normalization.
+        batch_size (bool): Size of batch of data.
+        calcNorm (bool): If dataset requested from calculateNormalization.py.
+        postprocess (bool): If dataset requested from main.py in measure mode.
+    '''
     valloader = testloader = None
     
-    if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # sieć musi być kolorowa więc dataset tez
+    if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # nn must be colorful so must dataset
         convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
     else:
         convert = transforms.Lambda(lambda x: x)
@@ -68,7 +83,7 @@ def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = F
             transforms.Normalize(normalization[0], normalization[1]),
         ])
     else:
-        # if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # todo problem z zmianą kolorów
+        # if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: 
         #     convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
         # elif not rgb and dataset in ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin']:
         #     convert = transforms.Grayscale(num_output_channels=1)
@@ -85,8 +100,7 @@ def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = F
 
     trainset, valset, testset, _ = getDataset(dataset, transform, transform_val)
 
-    if train or postprocess:
-        # trainset = CutMix(trainset, num_class=getNumClasses(dataset), beta=1.0, prob=0.25, num_mix=2)
+    if train:
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
         if valset is not None:
             valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False)
@@ -94,17 +108,17 @@ def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = F
             testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
         return trainloader, valloader, testloader
     else:
-        if ID:
-            testset = trainset
-        elif valset is not None:
+        # if ID:
+        #     testset = trainset
+        if valset is not None:
             if testset is not None:
-                testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
+                testset = torch.utils.data.ConcatDataset([valset, testset])
             else:
-                testset = torch.utils.data.ConcatDataset([trainset, valset])
-        elif testset is not None:
-            testset = torch.utils.data.ConcatDataset([trainset, testset])
-        else:
-            testset = trainset
+                testset = valset
+        # elif testset is not None:
+        #     pass
+        # else:
+        #     testset = trainset
         testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
         return testloader
 
@@ -199,7 +213,9 @@ def showLayers(model, shape):
 
 
 def getNormalization(dataset: str, train_ID=False):
-    if dataset == 'cifar10': # todo generalize
+    # train_ID (bool): Use only train subset - else: entire dataset.
+    # Function so far called with train_ID=True.
+    if dataset == 'cifar10': 
         if train_ID:
             normalization = [0.49139968, 0.48215841, 0.44653091], [0.24703223, 0.24348513, 0.26158784]
         else:
@@ -323,7 +339,6 @@ def loadNNWeights(nn: str, checkpoint: str):
     # print(unexpected_keys)
     model.eval()
     return model
-
 
 def save_scores(data, labels, save_name, save_dir):
     os.makedirs(save_dir, exist_ok=True)

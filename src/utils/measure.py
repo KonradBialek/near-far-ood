@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from .utils import dataloader, getNN, isCuda, getShape, getNormalization, loadNNWeights, save_scores,  showLayers
+from .utils import dataloader, loadNNWeights, save_scores
 import faiss
 from torch.utils.data import DataLoader
 
@@ -10,6 +10,14 @@ criterion = torch.nn.CrossEntropyLoss()
 normalizer = lambda x: x / np.linalg.norm(x, axis=-1, keepdims=True) + 1e-10
 
 def KNN(data: np.ndarray, method_args: list):
+    '''
+    Measure distance with KNN.
+
+    Args:
+        data (np.ndarray): Features to process.
+        method_args (list): List of method's aruments.
+    '''
+
     # setup
     K = int(method_args[0])
     activation_log = normalizer(data.reshape(
@@ -25,6 +33,15 @@ def KNN(data: np.ndarray, method_args: list):
     return torch.from_numpy(D[:, -1])
     
 def ODIN(data, model, method_args: list):
+    '''
+    Measure distance with ODIN.
+
+    Args:
+        data (Tensor): Features to process.
+        model (ResNet or DenseNet): Model of network.
+        method_args (list): List of method's aruments.
+    '''
+    
     # setup
     temperature = int(method_args[0])
     noise = float(method_args[1])
@@ -63,6 +80,14 @@ def ODIN(data, model, method_args: list):
     return nnOutput.max(dim=1)[0]
 
 def MSP(data, model = None):
+    '''
+    Measure distance with MSP.
+
+    Args:
+        data (np.ndarray or Tensor): Features to process.
+        model (None, ResNet or DenseNet): Model of network.
+    '''
+    
     if isinstance(data, np.ndarray):
         score = torch.softmax(torch.tensor(data), dim=1)
     else:
@@ -71,13 +96,36 @@ def MSP(data, model = None):
     return torch.max(score, dim=1)[0]
 
 
-def MDS(data: DataLoader, model, method_args: list):
+def MDS(data, model, method_args: list):
+    '''
+    Measure distance with MDS.
+
+    Args:
+        data (np.ndarray or Tensor): Features to process.
+        model (ResNet or DenseNet): Model of network.
+        method_args (list): List of method's aruments.
+    '''
     pass
 
-# def MLS(df: pd.DataFrame):
-#     pass
+def MLS(data, model, method_args: list):
+    '''
+    Measure distance with MLS.
 
-def measure(nn: str, method: str, datasets: list, method_args: list):
+    Args:
+        data (np.ndarray or Tensor): Features to process.
+        model (ResNet or DenseNet): Model of network.
+        method_args (list): List of method's aruments.
+    '''
+    pass
+
+def measure(method: str, method_args: list):
+    '''
+    Loop over .npz files in ./features directory. Measure distance with requested method.
+
+    Args:
+        method (str): Requested method.
+        method_args (list): List of method's aruments.
+    '''
     for file in os.listdir('./features/'):
         if file.endswith('.npz'):
             path = f'./features/{file}'
@@ -88,11 +136,7 @@ def measure(nn: str, method: str, datasets: list, method_args: list):
                 output = KNN(data, method_args)
             if method == 'msp':
                 output = MSP(data)
-            # if method == 'mls':
-            #     raise NotImplementedError(f"{method} not implenented")
-            #     MLS(df)
             save_scores(output, label, file[:-4]+'_'+method, './features')
-            # np.save(path[:-4]+'_'+method, output)
 
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
@@ -101,8 +145,8 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
 
     datasetLoaders = []
     for dataset in datasets:
-        _, valloader, _ = dataloader(dataset, postprocess=True)
-        datasetLoaders.append(valloader)
+        testloader = dataloader(dataset, rgb=True, train=False, ID=False)
+        datasetLoaders.append(testloader)
 
     save_name = nn
     for dataset, loader in enumerate(datasetLoaders):
@@ -112,7 +156,6 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
             gt = -dataset * np.ones_like(gt)
         outputs.append(conf)
         labels.append(gt)
-        # np.save('./features/'+save_name+'_'+method, output)
 
     outputs, labels = np.concatenate(outputs, axis=0), np.concatenate(labels, axis=0)
     save_scores(conf, gt, save_name+'_'+method, './features')

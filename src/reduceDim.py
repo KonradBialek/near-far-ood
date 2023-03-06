@@ -8,7 +8,9 @@ from sklearn.manifold import TSNE
 
 from utils.utils import save_scores
 
-
+'''
+Loops over .npz files in ./features directory. Reduces dimensions of extracted features of datasets with PCA to 50 dimensions, then t-SNE.
+'''
 n_components = 50 
 
 for file in os.listdir('./features/'):

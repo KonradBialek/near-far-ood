@@ -3,21 +3,28 @@ import argparse
 from PIL import Image
 from utils.utils import getDataset
 
+
+'''
+Calculates mean and standard deviation of pixels in images.
+
+Args as in python ./scr/calculateNormalization.py --help.
+'''
+
 dataset_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
 builtin_datasets = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'mnist', 'fashionmnist']
 mode_options = ['train', 'all']
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--dataset', default="cifar10", type=str, choices=dataset_options,
-                    help='dataset (name in torchvision.models or folder name in ./data)')
+                    help='(str) dataset (name in torchvision.models or folder name in ./data)')
 parser.add_argument('-m', '--mode', default="train", type=str, choices=mode_options,
-                    help='calculate normalization for train subset or all images')
+                    help='(str) calculate normalization for train subset or all images in dataset')
 
 args = parser.parse_args()
 
 trainset, valset, testset, _ = getDataset(args.dataset)
 
 if args.dataset in builtin_datasets:
-    if args.mode == 'all':
+    if args.mode == 'all': # if use all images - concatenate datasets
         if valset is not None:
             if testset is not None:
                 data = np.concatenate((trainset.data, valset.data, testset.data), axis=0)
@@ -27,7 +34,7 @@ if args.dataset in builtin_datasets:
             data = np.concatenate((trainset.data, testset.data), axis=0)
     else:
         data = trainset.data
-    data = data / 255 # data is numpy array
+    data = data / 255
 
 else:
     filelist = [trainset.imgs[x][0] for x in range(len(trainset.imgs))]

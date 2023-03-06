@@ -14,36 +14,43 @@ mode_options = ['train', 'extract', 'measure']
 parser = argparse.ArgumentParser()
 # common args
 parser.add_argument('-n', '--nn', default="resnet18", type=str, choices=model_options,
-                    help='neural network (name in pytorch/vision:v0.14.0)')
+                    help='(str) neural network (name in pytorch/vision:v0.14.0)')
 parser.add_argument('-M', '--mode', default="measure", type=str, choices=mode_options,
-                    help='"train", "measure" or "extract')
-parser.add_argument('-f', '--process_datasets', nargs='+', default=["mnist", "cifar10", "cifar100"], type=str, choices=OOD_options,
-                    help='datasets to extract features or measure distance starting with id dataset (names in torchvision.models or folder names in ./data)')
+                    help='(str) "train", "measure" or "extract')
 
 # train args
 parser.add_argument('-t', '--train_dataset', default="cifar10", type=str, choices=train_options,
-                    help='train dataset (name in torchvision.models or folder name in ./data)')
+                    help='(str) train dataset (name in torchvision.models or folder name in ./data)')
 parser.add_argument('-s', '--la_steps', default=5, type=int,
-                    help='steps for Lookahead')
+                    help='(int) steps for Lookahead')
 parser.add_argument('-a', '--la_alpha', default=0.5, type=float,
-                    help='alpha for Lookahead')
+                    help='(float) alpha for Lookahead')
 parser.add_argument('-N', '--n_holes', type=int, default=1,
-                    help='number of holes to cut out from image')
+                    help='(int) number of holes to cut out from image for Cutout')
 parser.add_argument('-l', '--length', type=int, default=16,
-                    help='length of the holes')
-
-# required in extract, optional in train and measure:
-parser.add_argument('-c', '--checkpoint', type=str,
-                    help='checkpoint file for resuming training or extracting features (path/name in ./checkpoints)')
+                    help='(int) length of the holes for Cutout')
 
 # measure args
 parser.add_argument('-m', '--method', default="knn", type=str, choices=method_options,
-                    help='out-of-distribution method - lowercase')
+                    help='(str) out-of-distribution method - lowercase')
 parser.add_argument('-A', '--method_args', nargs='+', default=["50"], type=str,
-                    help='out-of-distribution method arguments')
+                    help='(list) out-of-distribution method arguments')
 parser.set_defaults(argument=True)
 
+# required in extract, optional in train and measure:
+parser.add_argument('-c', '--checkpoint', type=str,
+                    help='(str) checkpoint file for resuming training or extracting features (path/name in ./checkpoints)')
+# required in extract and measure
+parser.add_argument('-f', '--process_datasets', nargs='+', default=["mnist", "cifar10", "cifar100"], type=str, choices=OOD_options,
+                    help='(list[str]) datasets to extract features or measure distance starting with id dataset (names in torchvision.models or folder names in ./data)')
+
+
 def main():
+    """
+    Chooses mode of program.
+
+    Args as in python ./scr/main.py --help.
+    """
     global args
     args = parser.parse_args()
     if args.mode == 'train':
