@@ -17,7 +17,7 @@ for file in os.listdir('./features/'):
     if file.endswith('.npz'):
         data = np.load('./features/'+file)['data']
         labels = np.load('./features/'+file)['labels']
-        if data.ndim > 1:
+        if data.ndim > 1 and not file.endswith('setup.npz'):
             if data.shape[1] > 2:
                 if n_components < data.shape[0]:
                     data = preprocessing.normalize(data, norm='l2')

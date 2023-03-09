@@ -34,7 +34,7 @@ def updateWriter(mode: str, loss: float, acc: float, epoch: int):
     writer.add_scalar(f"loss/{mode}", loss, epoch)
     writer.add_scalar(f"acc/{mode}", acc, epoch)
 
-def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False, postprocess = False):
+def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False, postprocess = False):
     '''
     Load dataset.
 
@@ -108,7 +108,7 @@ def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = F
             testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
         return trainloader, valloader, testloader
     else:
-        if ID:
+        if setup:
             testset = trainset
         elif valset is not None:
             if testset is not None:

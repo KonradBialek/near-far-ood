@@ -6,7 +6,7 @@ from torchvision.models.densenet import DenseNet
 import os
 from .utils import dataloader, getShape, getNormalization, isCuda, loadNNWeights, save_scores,  showLayers
 
-def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, use_gpu: bool, ID: bool, i: int):
+def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, use_gpu: bool, i: int, save_name = None):
     '''
     Extracts features from dataset.
 
@@ -27,13 +27,17 @@ def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, 
 
     outputs = torch.cat(outputs)
     outputs = outputs.numpy()
-    if ID:
+    if i == 0:
         labels = torch.cat(labels)
         labels = labels.numpy()
     else:
         labels = -i * np.ones(len(outputs))
-    outputs_.append(outputs)
-    labels_.append(labels)
+        
+    if save_name is not None:
+        save_scores(outputs, labels, save_name=save_name, save_dir='./features')
+    else:
+        outputs_.append(outputs)
+        labels_.append(labels)
 
 
 def extractFeatures(nn: str, datasets: list, checkpoint: str):
@@ -59,12 +63,14 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
         normalization = getNormalization(dataset, True)
         save_name += f'_{dataset}'
         if i > 0:
-            testloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, ID=False, normalization=normalization)
-            extract(model, testloader, use_gpu, False, i)
+            testloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, setup=False, normalization=normalization)
+            extract(model, testloader, use_gpu, i)
         else:
             showLayers(model, shape) 
-            testloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, ID=False, normalization=normalization)
-            extract(model, testloader, use_gpu, True, i)
+            trainloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, setup=True, normalization=normalization)
+            extract(model, trainloader, use_gpu, i, f'{nn}_{dataset}_setup')
+            testloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, setup=False, normalization=normalization)
+            extract(model, testloader, use_gpu, i)
     
     outputs_, labels_ = np.concatenate(outputs_, axis=0), np.concatenate(labels_, axis=0)
     save_scores(outputs_, labels_, save_name=save_name, save_dir='./features')

@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 criterion = torch.nn.CrossEntropyLoss()
 normalizer = lambda x: x / np.linalg.norm(x, axis=-1, keepdims=True) + 1e-10
 
-def KNN(data: np.ndarray, method_args: list):
+def KNN(data: np.ndarray, method_args: list, data_: np.array):
     '''
     Measure distance with KNN.
 
@@ -20,10 +20,10 @@ def KNN(data: np.ndarray, method_args: list):
 
     # setup
     K = int(method_args[0])
-    activation_log = normalizer(data.reshape(
-                    data.shape[0], data.shape[1], -1).mean(2))
+    activation_log = normalizer(data_.reshape(
+                    data_.shape[0], data_.shape[1], -1).mean(2))
 
-    index = faiss.IndexFlatL2(data.shape[1])
+    index = faiss.IndexFlatL2(data_.shape[1])
     activation_log = np.ascontiguousarray(activation_log)
     index.add(np.float32(activation_log))
 
@@ -127,14 +127,19 @@ def measure(method: str, method_args: list):
         method_args (list): List of method's aruments.
     '''
     for file in os.listdir('./features/'):
+        if file.endswith('setup.npz'):
+            path = f'./features/{file}'
+            data_ = np.load(path)['data']
+
+    for file in os.listdir('./features/'):
         if file.endswith('.npz'):
             path = f'./features/{file}'
             data = np.load(path)['data']
             label = np.load(path)['labels']
-            if data.ndim > 1:
+            if data.ndim > 1 and not file.endswith('setup.npz'):
                 if data.shape[1] > 2:
                     if method == 'knn':
-                        output = KNN(data, method_args)
+                        output = KNN(data, method_args, data_)
                     if method == 'msp':
                         output = MSP(data)
                     save_scores(output, label, file[:-4]+'_'+method, './features')
@@ -151,7 +156,7 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
 
     datasetLoaders = []
     for dataset in datasets:
-        testloader = dataloader(dataset, rgb=True, train=False, ID=False)
+        testloader = dataloader(dataset, rgb=True, train=False, setup=False)
         datasetLoaders.append(testloader)
 
     save_name = nn
