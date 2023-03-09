@@ -62,7 +62,7 @@ def main():
             print('Provide checkpoint file.')
     elif args.mode == 'measure':
             if args.method in ['msp', 'knn']:
-                measure(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args)
+                measure(method=args.method, method_args=args.method_args)
             else:
                 if args.checkpoint is not None:
                     measure_(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args, checkpoint=args.checkpoint)

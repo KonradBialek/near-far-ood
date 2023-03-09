@@ -60,11 +60,11 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
         save_name += f'_{dataset}'
         if i > 0:
             testloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, ID=False, normalization=normalization)
-            extract(model, testloader, save_name, use_gpu, False, i)
+            extract(model, testloader, use_gpu, False, i)
         else:
             showLayers(model, shape) 
             testloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, ID=False, normalization=normalization)
-            extract(model, testloader, save_name, use_gpu, True, i)
+            extract(model, testloader, use_gpu, True, i)
     
     outputs_, labels_ = np.concatenate(outputs_, axis=0), np.concatenate(labels_, axis=0)
     save_scores(outputs_, labels_, save_name=save_name, save_dir='./features')

@@ -108,9 +108,9 @@ def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, ID = F
             testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
         return trainloader, valloader, testloader
     else:
-        # if ID:
-        #     testset = trainset
-        if valset is not None:
+        if ID:
+            testset = trainset
+        elif valset is not None:
             if testset is not None:
                 testset = torch.utils.data.ConcatDataset([valset, testset])
             else:

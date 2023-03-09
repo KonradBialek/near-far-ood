@@ -131,12 +131,18 @@ def measure(method: str, method_args: list):
             path = f'./features/{file}'
             data = np.load(path)['data']
             label = np.load(path)['labels']
+            if data.ndim > 1:
+                if data.shape[1] > 2:
+                    if method == 'knn':
+                        output = KNN(data, method_args)
+                    if method == 'msp':
+                        output = MSP(data)
+                    save_scores(output, label, file[:-4]+'_'+method, './features')
+                else:
+                    print("Data have invalid shape.")
+            else:
+                print("Data have invalid shape.")
 
-            if method == 'knn':
-                output = KNN(data, method_args)
-            if method == 'msp':
-                output = MSP(data)
-            save_scores(output, label, file[:-4]+'_'+method, './features')
 
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
@@ -158,7 +164,7 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
         labels.append(gt)
 
     outputs, labels = np.concatenate(outputs, axis=0), np.concatenate(labels, axis=0)
-    save_scores(conf, gt, save_name+'_'+method, './features')
+    save_scores(outputs, labels, save_name+'_'+method, './features')
 
 
 def inference(model: torch.nn.Module, data_loader: DataLoader, method: str, method_args: list):

@@ -18,13 +18,16 @@ for file in os.listdir('./features/'):
         data = np.load('./features/'+file)['data']
         labels = np.load('./features/'+file)['labels']
         if data.ndim > 1:
-            if n_components < data.shape[0]:
-                data = preprocessing.normalize(data, norm='l2')
-                pca = PCA(n_components=n_components, whiten=True)
-                data = pca.fit_transform(data)
-                data = preprocessing.normalize(data, norm='l2')
-            tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=2000)
-            data = tsne.fit_transform(data)
-            save_scores(data, labels, save_name=file[:-4]+'_tsne', save_dir='./features')
+            if data.shape[1] > 2:
+                if n_components < data.shape[0]:
+                    data = preprocessing.normalize(data, norm='l2')
+                    pca = PCA(n_components=n_components, whiten=True)
+                    data = pca.fit_transform(data)
+                    data = preprocessing.normalize(data, norm='l2')
+                tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=2000)
+                data = tsne.fit_transform(data)
+                save_scores(data, labels, save_name=file[:-4]+'_tsne', save_dir='./features')
+            else:
+                print("Data have invalid shape.")
         else:
-            print("Data has too much dimensions.")
+            print("Data have invalid shape.")
