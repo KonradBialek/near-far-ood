@@ -56,9 +56,9 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
     os.makedirs('./features/', exist_ok=True)
 
     save_name = nn
+    shape, normalization = getShapeNormalization(datasets[0])
     for i, dataset in enumerate(datasets):
         print(f'extracting {dataset}')
-        shape, normalization = getShapeNormalization(dataset)
         save_name += f'_{dataset}'
         if i > 0:
             testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization)

@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from .utils import dataloader, loadNNWeights, save_scores
+from .utils import dataloader, getShapeNormalization, loadNNWeights, save_scores
 import faiss
 from torch.utils.data import DataLoader
 
@@ -143,11 +143,12 @@ def measure(method: str, method_args: list):
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
     outputs, labels = [], []
     model = loadNNWeights(nn, checkpoint)
+    shape, normalization = getShapeNormalization(datasets[0])
 
-    # trainloader = dataloader(dataset, train=False, setup=True)
+    # trainloader = dataloader(dataset, size=shape[:2], train=False, setup=True, normalization=normalization)
     datasetLoaders = []
     for dataset in datasets:
-        testloader = dataloader(dataset, train=False, setup=False)
+        testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization)
         datasetLoaders.append(testloader)
 
     save_name = nn
