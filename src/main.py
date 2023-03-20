@@ -5,10 +5,11 @@ from utils.train import train
 from utils.measure import measure, measure_
 
 
-model_options = ['resnet18', 'resnet34', 'renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2', 'densenet121', 'densenet161', 'densenet169', 'densenet201']
+# model_options = ['resnet18', 'resnet34', 'renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2', 'densenet121', 'densenet161', 'densenet169', 'densenet201']
+model_options = ['resnet18', 'densenet121']
 OOD_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
-train_options = ['cifar10', 'cifar100', 'mnist']
-method_options = ['knn', 'odin', 'msp', 'mds', 'mls']
+train_options = ['cifar10', 'cifar100', 'dtd', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
+method_options = ['knn', 'odin', 'msp', 'mls', 'react']
 mode_options = ['train', 'extract', 'measure']
 
 parser = argparse.ArgumentParser()
