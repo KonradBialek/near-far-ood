@@ -4,7 +4,7 @@ from datetime import datetime
 from torch.optim.lr_scheduler import MultiStepLR
 from torch_optimizer import Lookahead
 
-from .utils import getNN, runTensorboard, dataloader, AverageMeter, isCuda, saveModel, showLayers, updateWriter, getShape, getNormalization
+from .utils import getNN, getShapeNormalization, runTensorboard, dataloader, AverageMeter, isCuda, saveModel, showLayers, updateWriter
 
 def validate_(model, valloader, testloader, criterion, epoch, use_gpu: bool):
     with torch.no_grad():
@@ -83,8 +83,7 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int, la_
     patience = 70
     epoch, best_epoch, epochs = 0, -1, 1000
 
-    shape = getShape(dataset)
-    normalization = getNormalization(dataset, True)
+    shape, normalization = getShapeNormalization(dataset)
     os.makedirs(checkpoints, exist_ok=True)
     use_gpu = isCuda()
     runTensorboard()

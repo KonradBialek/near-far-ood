@@ -212,104 +212,64 @@ def showLayers(model, shape):
         summary(model, (shape[2], shape[0], shape[1]))    
 
 
-def getNormalization(dataset: str, train_ID=True):
-    # train_ID (bool): Use only train subset - else: entire dataset.
-    # Function so far called with train_ID=True.
-    if dataset == 'cifar10': 
-        if train_ID:
-            normalization = [0.49139968, 0.48215841, 0.44653091], [0.24703223, 0.24348513, 0.26158784]
-        else:
-            normalization = [0.49186878, 0.48265391, 0.44717728], [0.24697121, 0.24338894, 0.26159259]
-    elif dataset == 'cifar100':
-        if train_ID:
-            normalization = [0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]
-        else:
-            normalization = [0.50736203, 0.48668956, 0.44108857], [0.26748815, 0.2565931, 0.27630851]
-    elif dataset == 'mnist':
-        if train_ID:
-            normalization = [0.13062754273414612], [0.30810779333114624]
-        else:
-            normalization = [0.13092535192648502], [0.3084485240270358]
-    elif dataset == 'fashionmnist':
-        if train_ID:
-            normalization = [0.28604060411453247], [0.3530242443084717]
-        else:
-            normalization = [0.2861561232350083], [0.3529415461508495]
-    elif dataset == 'notmnist':
-        if train_ID:
-            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
-        else:
-            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
-    elif dataset == 'dtd':
-        if train_ID:
-            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
-        else:
-            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
-    elif dataset == 'svhn':
-        if train_ID:
-            normalization = [0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]
-        else:
-            normalization = [0.44154697, 0.44605756, 0.47180097], [0.20396256, 0.20805474, 0.20576004]
-    elif dataset == 'tin':
-        if train_ID:
-            normalization = [0.48023694, 0.44806704, 0.39750364], [0.27643643, 0.26886328, 0.28158993]
-        else:
-            normalization = [0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]
-    else:
-        normalization = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+normalization_dict = {'cifar10': ([0.49139968, 0.48215841, 0.44653091], [0.24703223, 0.24348513, 0.26158784]),
+                      'cifar100': ([0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]),
+                      'mnist': ([0.13062754273414612], [0.30810779333114624]),
+                      'fashionmnist': ([0.28604060411453247], [0.3530242443084717]),
+                      'notmnist': NotImplementedError(f'Normalization and shape of images in notmnist is not known.'),
+                      'dtd': NotImplementedError(f'Normalization and shape of images in dtd is not known.'),
+                      'places365': NotImplementedError(f'Normalization and shape of images in places365 is not known.'),
+                      'svhn': ([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]),
+                      'tin': ([0.48023694, 0.44806704, 0.39750364], [0.27643643, 0.26886328, 0.28158993]),
+}
 
-    return normalization
+shape_dict = {'cifar10': (32, 32, 3),
+              'cifar100': (32, 32, 3),
+              'svhn': (32, 32, 3),
+              'mnist': (28, 28, 3),
+              'fashionmnist': (28, 28, 3),
+              'notmnist': (28, 28, 3),
+              'dtd': (300, 300, 3),
+              'places365': (256, 256, 3),
+              'tin': (64, 64, 3),
+}
 
-def getShape(dataset: str):
-    if dataset in ['cifar10', 'cifar100', 'svhn']: # todo generalize
-        shape = 32, 32, 3
-    elif dataset in ['mnist', 'fashionmnist', 'notmnist']:
-        shape = 28, 28, 3
-    elif dataset == 'dtd':
-        shape = 300, 300, 3
-    elif dataset == 'places365':
-        shape = 256, 256, 3
-    elif dataset == 'tin':
-        shape = 64, 64, 3
+def getShapeNormalization(dataset):
+    return shape_dict[dataset], normalization_dict[dataset]
 
-    return shape
-
-def getNumClasses(dataset: str):
-    if dataset in ['cifar10', 'mnist', 'Fashionmnist', 'notmnist', 'svhn']:
-        return 10
-    elif dataset == 'dtd':
-        return 47
-    elif dataset == 'cifar100':
-        return 100
-    elif dataset == 'places365':
-        return 365
-    elif dataset == 'tin':
-        return 1000
-    else:
-        raise NotImplementedError(f'Number of classes in {dataset} is not known.')
+num_classes_dict = {'cifar10': 10,
+                    'cifar100': 100,
+                    'svhn': 10,
+                    'mnist': 10,
+                    'fashionmnist': 10,
+                    'notmnist': 10,
+                    'dtd': 47,
+                    'places365': 365,
+                    'tin': 1000,
+}
 
 def getNN(nn: str, dataset: str):
     model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-    numFetures = getNumFeatures(nn)
-    numClasses = getNumClasses(dataset)
+    numFetures = num_features_dict[nn]
+    numClasses = num_classes_dict[dataset]
     model.fc = torch.nn.Linear(numFetures, numClasses)
     return model
 
-def getNumFeatures(nn: str):
-    if nn in ['resnet18', 'resnet34']:
-        return 512
-    elif nn in ['renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2']:
-        return 2048
-    elif nn == 'densenet121':
-        return 1024
-    elif nn == 'densenet161':
-        return 2208
-    elif nn == 'densenet169':
-        return 1664
-    elif nn == 'densenet201':
-        return 1920
-    else:
-        raise NotImplementedError(f'Network {nn} is not known.')
+num_features_dict = {'resnet18': 512,
+                    'resnet34': 512,
+                    'renset50': 2048,
+                    'renset101': 2048,
+                    'renset152': 2048,
+                    'resnext50_32x4d': 2048,
+                    'resnext101_32x8d': 2048,
+                    'resnext101_64x4d': 2048,
+                    'wide_resnet50_2': 2048,
+                    'wide_resnet101_2': 2048,
+                    'densenet121': 1024,
+                    'densenet161': 2208,
+                    'densenet169': 1664,
+                    'densenet201': 1920,
+}
 
 
 def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints: str, nn: str, flag: int):
