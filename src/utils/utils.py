@@ -34,14 +34,13 @@ def updateWriter(mode: str, loss: float, acc: float, epoch: int):
     writer.add_scalar(f"loss/{mode}", loss, epoch)
     writer.add_scalar(f"acc/{mode}", acc, epoch)
 
-def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False, postprocess = False):
+def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False, postprocess = False):
     '''
     Load dataset.
 
     Args:
         dataset (str): Name of dataset to load.
         size (int, int): Size of output images.
-        rgb (bool): If images should be colorful.
         train (bool): If in train mode.
         ID (bool): If in-distribution dataset.
         n_holes (int): Number of holes to cut out from image for Cutout.
@@ -53,7 +52,7 @@ def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, setup 
     '''
     valloader = testloader = None
     
-    if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: # nn must be colorful so must dataset
+    if dataset in ['mnist', 'fashionmnist', 'notmnist']: # nn must be colorful so must dataset
         convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
     else:
         convert = transforms.Lambda(lambda x: x)
@@ -83,13 +82,6 @@ def dataloader(dataset: str, size = (32, 32), rgb = False, train = False, setup 
             transforms.Normalize(normalization[0], normalization[1]),
         ])
     else:
-        # if rgb and dataset in ['mnist', 'fashionmnist', 'notmnist']: 
-        #     convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
-        # elif not rgb and dataset in ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin']:
-        #     convert = transforms.Grayscale(num_output_channels=1)
-        # else:
-        #     convert = transforms.Lambda(lambda x: x)
-
         transform = transforms.Compose([
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
             transforms.ToTensor(), 

@@ -53,7 +53,6 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
     outputs_, labels_ = [], []
     use_gpu = isCuda()
     model = loadNNWeights(nn, checkpoint)
-    rgb = True
     os.makedirs('./features/', exist_ok=True)
 
     save_name = nn
@@ -62,13 +61,13 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
         shape, normalization = getShapeNormalization(dataset)
         save_name += f'_{dataset}'
         if i > 0:
-            testloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, setup=False, normalization=normalization)
+            testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization)
             extract(model, testloader, use_gpu, i)
         else:
             showLayers(model, shape) 
-            trainloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, setup=True, normalization=normalization)
+            trainloader = dataloader(dataset, size=shape[:2], train=False, setup=True, normalization=normalization)
             extract(model, trainloader, use_gpu, i, f'{nn}_{dataset}_setup')
-            testloader = dataloader(dataset, size=shape[:2], rgb=rgb, train=False, setup=False, normalization=normalization)
+            testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization)
             extract(model, testloader, use_gpu, i)
     
     outputs_, labels_ = np.concatenate(outputs_, axis=0), np.concatenate(labels_, axis=0)

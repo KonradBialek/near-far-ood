@@ -144,10 +144,10 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
     outputs, labels = [], []
     model = loadNNWeights(nn, checkpoint)
 
-    # trainloader = dataloader(dataset, rgb=True, train=False, setup=True)
+    # trainloader = dataloader(dataset, train=False, setup=True)
     datasetLoaders = []
     for dataset in datasets:
-        testloader = dataloader(dataset, rgb=True, train=False, setup=False)
+        testloader = dataloader(dataset, train=False, setup=False)
         datasetLoaders.append(testloader)
 
     save_name = nn
