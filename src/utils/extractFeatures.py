@@ -18,20 +18,14 @@ def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, 
         i (int): Id to set labels for OoD dataset.
     '''
     outputs = []
-    labels = []
-    for images, classes in testloader:
+    for images, _ in testloader:
         if use_gpu: 
             images = images.cuda()
         outputs.append(model(images).cpu().detach())
-        labels.append(classes.cpu().detach())
 
     outputs = torch.cat(outputs)
     outputs = outputs.numpy()
-    if i == 0:
-        labels = torch.cat(labels)
-        labels = labels.numpy()
-    else:
-        labels = -i * np.ones(len(outputs))
+    labels = i * np.ones(len(outputs))
         
     if save_name is not None:
         save_scores(outputs, labels, save_name=save_name, save_dir='./features')
