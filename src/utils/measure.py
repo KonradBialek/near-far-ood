@@ -96,16 +96,6 @@ def MSP(data, model = None):
     return torch.max(score, dim=1)[0]
 
 
-def MDS(data, model, method_args: list):
-    '''
-    Measure distance with MDS.
-
-    Args:
-        data (np.ndarray or Tensor): Features to process.
-        model (ResNet or DenseNet): Model of network.
-        method_args (list): List of method's aruments.
-    '''
-    pass
 
 def MLS(data, model, method_args: list):
     '''
@@ -154,6 +144,7 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
     outputs, labels = [], []
     model = loadNNWeights(nn, checkpoint)
 
+    # trainloader = dataloader(dataset, rgb=True, train=False, setup=True)
     datasetLoaders = []
     for dataset in datasets:
         testloader = dataloader(dataset, rgb=True, train=False, setup=False)
