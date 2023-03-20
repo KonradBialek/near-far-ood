@@ -170,8 +170,6 @@ def inference(model: torch.nn.Module, data_loader: DataLoader, method: str, meth
         label = batch[1].cuda()
         if method == 'odin':
             conf = ODIN(data, model, method_args)
-        elif method == 'mds':
-            conf = MDS(data, model, method_args)
         elif method == 'msp':
             conf = MSP(data, model)
         for idx in range(len(data)):
