@@ -153,8 +153,8 @@ def getDataset(dataset: str, transform = None, transform_val = None):
     elif dataset == 'svhn':
         trainset = torchvision.datasets.SVHN(root='./data', download=True, transform=transform)
         testset = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform_val)
-        extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform_val)
-        # trainset = torch.utils.data.ConcatDataset([trainset, extraset])
+        # extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform)
+        # trainset = torch.utils.data.ConcatDataset([trainset, extraset]) # no extraset
     else:
         dataset_path = f'./data/{dataset}/'
         if dataset == 'notmnist':
@@ -212,7 +212,7 @@ def showLayers(model, shape):
         summary(model, (shape[2], shape[0], shape[1]))    
 
 
-def getNormalization(dataset: str, train_ID=False):
+def getNormalization(dataset: str, train_ID=True):
     # train_ID (bool): Use only train subset - else: entire dataset.
     # Function so far called with train_ID=True.
     if dataset == 'cifar10': 
@@ -241,11 +241,6 @@ def getNormalization(dataset: str, train_ID=False):
         else:
             raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
     elif dataset == 'dtd':
-        if train_ID:
-            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
-        else:
-            raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
-    elif dataset == 'places365':
         if train_ID:
             raise NotImplementedError(f'Normalization and shape of images in {dataset} is not known.')
         else:
