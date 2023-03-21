@@ -145,10 +145,10 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
     model = loadNNWeights(nn, checkpoint)
     shape, normalization = getShapeNormalization(datasets[0])
 
-    # trainloader = dataloader(dataset, size=shape[:2], train=False, setup=True, normalization=normalization)
+    # trainloader = dataloader(dataset, size=shape[:2], train=False, setup=True, normalization=normalization, postprocess=True)
     datasetLoaders = []
     for dataset in datasets:
-        testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization)
+        testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
         datasetLoaders.append(testloader)
 
     save_name = nn

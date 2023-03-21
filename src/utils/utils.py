@@ -34,7 +34,7 @@ def updateWriter(mode: str, loss: float, acc: float, epoch: int):
     writer.add_scalar(f"loss/{mode}", loss, epoch)
     writer.add_scalar(f"acc/{mode}", acc, epoch)
 
-def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, calcNorm = False, postprocess = False):
+def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, postprocess = False):
     '''
     Load dataset.
 
@@ -53,12 +53,13 @@ def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_ho
     valloader = testloader = None
     
     if dataset in ['mnist', 'fashionmnist', 'notmnist']: # nn must be colorful so must dataset
-        convert = transforms.Lambda(lambda x: x.repeat(3,1,1))
+        convert = Convert('RGB')
     else:
         convert = transforms.Lambda(lambda x: x)
 
     if train:
         transform = transforms.Compose([
+            convert,
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC), # for irregular datasets
             transforms.RandomCrop(size[0], padding=4),
             transforms.RandomHorizontalFlip(),  
@@ -71,24 +72,16 @@ def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_ho
             transforms.ToTensor(),
             transforms.Normalize(normalization[0], normalization[1]),
         ])
-    elif calcNorm or postprocess:
+    elif postprocess:
         transform = transform_val = transforms.Compose([
-            Convert('RGB'),
+            convert,
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
-            transforms.CenterCrop(size),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop(size, padding=4),
+            # transforms.CenterCrop(size),
+            # transforms.RandomHorizontalFlip(),
+            # transforms.RandomCrop(size, padding=4),
             transforms.ToTensor(),
             transforms.Normalize(normalization[0], normalization[1]),
         ])
-    else:
-        transform = transforms.Compose([
-            transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
-            transforms.ToTensor(), 
-            transforms.Normalize(normalization[0], normalization[1]),
-            convert,
-        ])
-        transform_val = transform
 
     trainset, valset, testset, _ = getDataset(dataset, transform, transform_val)
 
@@ -107,10 +100,6 @@ def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_ho
                 testset = torch.utils.data.ConcatDataset([valset, testset])
             else:
                 testset = valset
-        # elif testset is not None:
-        #     pass
-        # else:
-        #     testset = trainset
         testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
         return testloader
 
@@ -208,9 +197,9 @@ normalization_dict = {'cifar10': ([0.49139968, 0.48215841, 0.44653091], [0.24703
                       'cifar100': ([0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]),
                       'mnist': ([0.13062754273414612], [0.30810779333114624]),
                       'fashionmnist': ([0.28604060411453247], [0.3530242443084717]),
-                      'notmnist': NotImplementedError(f'Normalization and shape of images in notmnist is not known.'),
-                      'dtd': NotImplementedError(f'Normalization and shape of images in dtd is not known.'),
-                      'places365': NotImplementedError(f'Normalization and shape of images in places365 is not known.'),
+                    #   'notmnist': NotImplementedError(f'Normalization and shape of images in notmnist is not known.'),
+                    #   'dtd': NotImplementedError(f'Normalization and shape of images in dtd is not known.'),
+                    #   'places365': NotImplementedError(f'Normalization and shape of images in places365 is not known.'),
                       'svhn': ([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]),
                       'tin': ([0.48023694, 0.44806704, 0.39750364], [0.27643643, 0.26886328, 0.28158993]),
 }
