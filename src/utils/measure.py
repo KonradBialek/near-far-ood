@@ -97,16 +97,19 @@ def MSP(data, model = None):
 
 
 
-def MLS(data, model, method_args: list):
+def MLS(data, model = None):
     '''
     Measure distance with MLS.
 
     Args:
         data (np.ndarray or Tensor): Features to process.
         model (ResNet or DenseNet): Model of network.
-        method_args (list): List of method's aruments.
     '''
-    pass
+    if isinstance(data, np.ndarray):
+        output = torch.tensor(data)
+    else:
+        output = model(data).get('fc')
+    return torch.max(output, dim=1)[0]
 
 def measure(method: str, method_args: list):
     '''
