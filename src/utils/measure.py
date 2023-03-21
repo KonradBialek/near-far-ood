@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from .utils import dataloader, getNormalization, getShape, isUltimateLayer, loadNNWeights, save_scores
+from .utils import dataloader, getNormalization, getShape, isUltimateLayer, loadNNWeights, save_scores_
 import faiss
 from torch.utils.data import DataLoader
 
@@ -48,7 +48,7 @@ def ODIN(data, model, method_args: list):
 
     # process
     data.requires_grad = True
-    output = model(data)
+    output = model(data).get('avgpool')
     criterion = torch.nn.CrossEntropyLoss()
     labels = output.detach().argmax(axis=1)
 
@@ -69,7 +69,7 @@ def ODIN(data, model, method_args: list):
 
     # Adding small perturbations to images
     tempInputs = torch.add(data.detach(), gradient, alpha=-noise)
-    output = model(tempInputs)
+    output = model(tempInputs).get('avgpool')
     output = output / temperature
 
     # Calculating the confidence after adding perturbations
@@ -91,7 +91,7 @@ def MSP(data, model = None):
     if isinstance(data, np.ndarray):
         score = torch.softmax(torch.tensor(data), dim=1)
     else:
-        output = model(data)
+        output = model(data).get('fc')
         score = torch.softmax(output, dim=1)
     return torch.max(score, dim=1)[0]
 
@@ -116,15 +116,22 @@ def measure(method: str, method_args: list):
         method (str): Requested method.
         method_args (list): List of method's aruments.
     '''
+    last_layer = isUltimateLayer(method=method)
     for file in os.listdir('./features/'):
         if file.endswith('setup.npz'):
             path = f'./features/{file}'
-            data_ = np.load(path)['data']
+            if last_layer:
+                data_ = np.load(path)['logits']
+            else:
+                data_ = np.load(path)['features']
 
     for file in os.listdir('./features/'):
         if file.endswith('.npz'):
             path = f'./features/{file}'
-            data = np.load(path)['data']
+            if last_layer:
+                data = np.load(path)['logits']
+            else:
+                data = np.load(path)['features']
             label = np.load(path)['labels']
             if data.ndim > 1 and not file.endswith('setup.npz'):
                 if data.shape[1] > 2:
@@ -132,7 +139,7 @@ def measure(method: str, method_args: list):
                         output = KNN(data, method_args, data_)
                     if method == 'msp':
                         output = MSP(data)
-                    save_scores(output, label, file[:-4]+'_'+method, './features')
+                    save_scores_(output, label, file[:-4]+'_'+method, './features')
                 else:
                     print("Data have invalid shape.")
             else:
@@ -142,7 +149,7 @@ def measure(method: str, method_args: list):
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
     outputs, labels = [], []
-    model = loadNNWeights(nn, checkpoint, last_layer=isUltimateLayer(method), dataset=datasets[0])
+    model = loadNNWeights(nn, checkpoint, last_layer=isUltimateLayer(method=method), dataset=datasets[0])
     shape = getShape(datasets[0])
     normalization = getNormalization(datasets[0])
 
@@ -162,7 +169,7 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
         labels.append(gt)
 
     outputs, labels = np.concatenate(outputs, axis=0), np.concatenate(labels, axis=0)
-    save_scores(outputs, labels, save_name+'_'+method, './features')
+    save_scores_(outputs, labels, save_name+'_'+method, './features')
 
 
 def inference(model: torch.nn.Module, data_loader: DataLoader, method: str, method_args: list):

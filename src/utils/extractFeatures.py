@@ -17,20 +17,25 @@ def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, 
         ID (bool) If in-distribution dataset.
         i (int): Id to set labels for OoD dataset.
     '''
-    outputs = []
+    features, logits = [], []
     for images, _ in testloader:
         if use_gpu: 
             images = images.cuda()
-        outputs.append(model(images).cpu().detach())
+        output = model(images)
+        features.append(output.get('avgpool').cpu().detach())
+        logits.append(output.get('fc').cpu().detach())
 
-    outputs = torch.cat(outputs)
-    outputs = outputs.numpy()
-    labels = i * np.ones(len(outputs))
+    features = torch.cat(features)
+    logits = torch.cat(logits)
+    features = features.numpy()
+    logits = logits.numpy()
+    labels = i * np.ones(len(features))
         
     if save_name is not None:
-        save_scores(outputs, labels, save_name=save_name, save_dir='./features')
+        save_scores(features, logits, labels, save_name=save_name, save_dir='./features')
     else:
-        outputs_.append(outputs)
+        features_.append(features)
+        logits_.append(logits)
         labels_.append(labels)
 
 
@@ -43,8 +48,8 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
         dataset (list): List of dataset names.
         checkpoint (str): Name of pretrained network checkpoint file.
     '''
-    global outputs_, labels_
-    outputs_, labels_ = [], []
+    global features_, logits_, labels_
+    features_, logits_, labels_ = [], [], []
     use_gpu = isCuda()
     model = loadNNWeights(nn, checkpoint, last_layer=False, dataset=datasets[0])
     os.makedirs('./features/', exist_ok=True)
@@ -63,6 +68,6 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
         testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
         extract(model, testloader, use_gpu, i)
     
-    outputs_, labels_ = np.concatenate(outputs_, axis=0), np.concatenate(labels_, axis=0)
-    save_scores(outputs_, labels_, save_name=save_name, save_dir='./features')
+    features_, logits_, labels_ = np.concatenate(features_, axis=0), np.concatenate(logits_, axis=0), np.concatenate(labels_, axis=0)
+    save_scores(features_, logits_, labels_, save_name=save_name, save_dir='./features')
             

@@ -284,13 +284,8 @@ def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints:
 def loadNNWeights(nn: str, checkpoint: str, last_layer: bool, dataset: str):
     path = f'./checkpoints/{checkpoint}'
     ckpt = torch.load(path)
-    model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
     model = getNN(nn, dataset, last_layer=last_layer)
-
-    # print(model)
-    # print("qwertyuikjhgfvdcsdx")
-    # for (name, module) in model.named_modules():
-    #     print(name, module)
+    model = create_feature_extractor(model, ['avgpool', 'fc'])
 
     use_gpu = isCuda()
     if use_gpu:
@@ -304,8 +299,15 @@ def loadNNWeights(nn: str, checkpoint: str, last_layer: bool, dataset: str):
     model.eval()
     return model
 
-def save_scores(data, labels, save_name, save_dir):
+def save_scores(fetures, logits, labels, save_name, save_dir):
     os.makedirs(save_dir, exist_ok=True)
     np.savez(os.path.join(save_dir, save_name),
-                data=data,
+                fetures=fetures,
+                logits=logits,
+                labels=labels)
+    
+def save_scores_(fetures, labels, save_name, save_dir):
+    os.makedirs(save_dir, exist_ok=True)
+    np.savez(os.path.join(save_dir, save_name),
+                fetures=fetures,
                 labels=labels)
