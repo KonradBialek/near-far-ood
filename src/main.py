@@ -42,7 +42,7 @@ parser.set_defaults(argument=True)
 parser.add_argument('-c', '--checkpoint', type=str,
                     help='(str) checkpoint file for resuming training or extracting features (path/name in ./checkpoints)')
 # required in extract and measure
-parser.add_argument('-f', '--process_datasets', nargs='+', default=["mnist", "cifar10", "cifar100"], type=str, choices=OOD_options,
+parser.add_argument('-f', '--process_datasets', nargs='+', default=['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist'], type=str, choices=OOD_options,
                     help='(list[str]) datasets to extract features or measure distance starting with id dataset (names in torchvision.models or folder names in ./data)')
 
 

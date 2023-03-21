@@ -49,11 +49,9 @@ def train_(model, trainloader: torch.utils.data.DataLoader, criterion, optimizer
             images, labels = images.cuda(), labels.cuda()
 
         optimizer.zero_grad()
-        # Forward pass
         outputs = model(images)
         loss = criterion(outputs, labels)
 
-        # Backward and optimize
         loss.backward()
         optimizer.step()
         loss_.update(loss.item())
@@ -74,7 +72,6 @@ def train_(model, trainloader: torch.utils.data.DataLoader, criterion, optimizer
 
 
 
-# def train(nn: str, dataset: str, checkpoint: str, la_steps: int, la_alpha: float, n_holes: int, length: int):
 def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int, la_steps: int, la_alpha: float):
     now = datetime.now()
     date_time = now.strftime("%m-%d-%Y_%H-%M-%S")
