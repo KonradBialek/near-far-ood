@@ -52,18 +52,16 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
     save_name = nn
     shape = getShape(datasets[0])
     normalization = getNormalization(datasets[0])
+    showLayers(model, shape) 
     for i, dataset in enumerate(datasets):
         print(f'extracting {dataset}')
         save_name += f'_{dataset}'
-        if i > 0:
-            testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
-            extract(model, testloader, use_gpu, i)
-        else:
-            showLayers(model, shape) 
+        if i == 0:
             trainloader = dataloader(dataset, size=shape[:2], train=False, setup=True, normalization=normalization, postprocess=True)
             extract(model, trainloader, use_gpu, i, f'{nn}_{dataset}_setup')
-            testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
-            extract(model, testloader, use_gpu, i)
+
+        testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
+        extract(model, testloader, use_gpu, i)
     
     outputs_, labels_ = np.concatenate(outputs_, axis=0), np.concatenate(labels_, axis=0)
     save_scores(outputs_, labels_, save_name=save_name, save_dir='./features')
