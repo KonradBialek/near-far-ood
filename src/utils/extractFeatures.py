@@ -4,7 +4,7 @@ import torch
 from torchvision.models.resnet import ResNet
 from torchvision.models.densenet import DenseNet
 import os
-from .utils import dataloader, getShapeNormalization, isCuda, loadNNWeights, save_scores,  showLayers
+from .utils import dataloader, getNormalization, getShape, isCuda, loadNNWeights, save_scores,  showLayers
 
 def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, use_gpu: bool, i: int, save_name = None):
     '''
@@ -50,7 +50,8 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
     os.makedirs('./features/', exist_ok=True)
 
     save_name = nn
-    shape, normalization = getShapeNormalization(datasets[0])
+    shape = getShape(datasets[0])
+    normalization = getNormalization(datasets[0])
     for i, dataset in enumerate(datasets):
         print(f'extracting {dataset}')
         save_name += f'_{dataset}'

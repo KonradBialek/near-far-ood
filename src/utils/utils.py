@@ -198,7 +198,7 @@ normalization_dict = {'cifar10': ([0.49139968, 0.48215841, 0.44653091], [0.24703
                       'mnist': ([0.13062754273414612], [0.30810779333114624]),
                       'fashionmnist': ([0.28604060411453247], [0.3530242443084717]),
                     #   'notmnist': NotImplementedError(f'Normalization and shape of images in notmnist is not known.'),
-                    #   'dtd': NotImplementedError(f'Normalization and shape of images in dtd is not known.'),
+                      'dtd': ([0.52875836, 0.4730212, 0.4247069], [0.26853561, 0.25950334, 0.26667375]),
                     #   'places365': NotImplementedError(f'Normalization and shape of images in places365 is not known.'),
                       'svhn': ([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]),
                       'tin': ([0.48023694, 0.44806704, 0.39750364], [0.27643643, 0.26886328, 0.28158993]),
@@ -215,8 +215,11 @@ shape_dict = {'cifar10': (32, 32, 3),
               'tin': (64, 64, 3),
 }
 
-def getShapeNormalization(dataset):
-    return shape_dict[dataset], normalization_dict[dataset]
+def getShape(dataset):
+    return shape_dict[dataset]
+
+def getNormalization(dataset):
+    return normalization_dict[dataset]
 
 num_classes_dict = {'cifar10': 10,
                     'cifar100': 100,
