@@ -39,7 +39,7 @@ if args.dataset in builtin_datasets and args.dataset != 'dtd':
 else:
     if args.dataset == 'dtd':
         if args.mode == 'all': 
-            raise NotImplementedError("'all' mode not implemented")
+            raise NotImplementedError("'all' mode for this dataset is not implemented")
         else:
             filelist = []
             with open('data/dtd/dtd/labels/train1.txt') as file:

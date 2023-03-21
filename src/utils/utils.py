@@ -139,7 +139,8 @@ def getDataset(dataset: str, transform = None, transform_val = None):
     else:
         dataset_path = f'./data/{dataset}/'
         if dataset == 'notmnist':
-            trainset = torchvision.datasets.ImageFolder(dataset_path, transform=transform)
+            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
+            valset = torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val)
         elif dataset == 'tin':
             trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
             valset = processValTIN(dataset_path, transform_val) # if tiny imagenet val in raw form
@@ -197,7 +198,7 @@ normalization_dict = {'cifar10': ([0.49139968, 0.48215841, 0.44653091], [0.24703
                       'cifar100': ([0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]),
                       'mnist': ([0.13062754273414612], [0.30810779333114624]),
                       'fashionmnist': ([0.28604060411453247], [0.3530242443084717]),
-                    #   'notmnist': NotImplementedError(f'Normalization and shape of images in notmnist is not known.'),
+                      'notmnist': ([0.4239663035214087], [0.4583350861943875]),
                       'dtd': ([0.52875836, 0.4730212, 0.4247069], [0.26853561, 0.25950334, 0.26667375]),
                     #   'places365': NotImplementedError(f'Normalization and shape of images in places365 is not known.'),
                       'svhn': ([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]),
