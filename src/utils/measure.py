@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from .utils import dataloader, getNormalization, getShape, loadNNWeights, save_scores
+from .utils import dataloader, getNormalization, getShape, isUltimateLayer, loadNNWeights, save_scores
 import faiss
 from torch.utils.data import DataLoader
 
@@ -142,7 +142,7 @@ def measure(method: str, method_args: list):
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
     outputs, labels = [], []
-    model = loadNNWeights(nn, checkpoint)
+    model = loadNNWeights(nn, checkpoint, last_layer=isUltimateLayer(method))
     shape = getShape(datasets[0])
     normalization = getNormalization(datasets[0])
 

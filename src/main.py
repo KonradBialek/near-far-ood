@@ -9,7 +9,7 @@ from utils.measure import measure, measure_
 model_options = ['resnet18', 'densenet121']
 OOD_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
 train_options = ['cifar10', 'cifar100', 'dtd', 'svhn', 'tin', 'mnist', 'fashionmnist']
-method_options = ['knn', 'odin', 'msp', 'mls', 'react']
+method_options = ['knn', 'odin', 'msp', 'mls', 'react', 'lof', 'mahalanobis']
 mode_options = ['train', 'extract', 'measure']
 
 parser = argparse.ArgumentParser()

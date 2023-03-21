@@ -23,7 +23,18 @@ class Convert:
     def __call__(self, image):
         return image.convert(self.mode)
     
-    
+
+ultimate_layer_methods = ['msp', 'mls', 'react']
+penultimate_layer_methods = ['knn', 'odin', 'lof', 'mahalanobis']
+
+def isUltimateLayer(method: str):
+    if method in ultimate_layer_methods:
+        return True
+    elif method in penultimate_layer_methods:
+        return False
+    else:
+        raise NotImplementedError(f'Method is not known.')
+
 def runTensorboard():
     tb = program.TensorBoard()
     tb.configure(argv=[None, '--logdir', 'runs'])
@@ -266,15 +277,20 @@ def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints:
         'loss': loss,
         }, f'{checkpoints}/model-{nn}-epoch-{epoch}{"-last" if flag == 2 else ""}-CrossEntropyLoss-{loss:.8f}{"-early_stop" if flag == 1 else ""}.pth')
 
-def loadNNWeights(nn: str, checkpoint: str):
+def loadNNWeights(nn: str, checkpoint: str, last_layer: bool):
     path = f'./checkpoints/{checkpoint}'
     ckpt = torch.load(path)
     model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-    model.fc = torch.nn.Identity()
+    if not last_layer:
+        model.fc = torch.nn.Identity()
+
     use_gpu = isCuda()
     if use_gpu:
         model = model.cuda()
-    missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'], strict=False)
+    if last_layer:
+        missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'])
+    else:
+        missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'], strict=False)
     # print(missing_keys)
     # print(unexpected_keys)
     model.eval()
