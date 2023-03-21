@@ -142,7 +142,7 @@ def measure(method: str, method_args: list):
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
     outputs, labels = [], []
-    model = loadNNWeights(nn, checkpoint, last_layer=isUltimateLayer(method))
+    model = loadNNWeights(nn, checkpoint, last_layer=isUltimateLayer(method), dataset=datasets[0])
     shape = getShape(datasets[0])
     normalization = getNormalization(datasets[0])
 

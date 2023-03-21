@@ -8,6 +8,7 @@ from tensorboard import program
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import torchvision.transforms as transforms
+from torchvision.models.feature_extraction import create_feature_extractor
 import torchvision
 from torchsummary import summary
 from .cutout import Cutout
@@ -244,11 +245,14 @@ num_classes_dict = {'cifar10': 10,
                     'tin': 1000,
 }
 
-def getNN(nn: str, dataset: str):
+def getNN(nn: str, dataset: str, last_layer: bool):
     model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-    numFetures = num_features_dict[nn]
-    numClasses = num_classes_dict[dataset]
-    model.fc = torch.nn.Linear(numFetures, numClasses)
+    if last_layer:
+        numFetures = num_features_dict[nn]
+        numClasses = num_classes_dict[dataset]
+        model.fc = torch.nn.Linear(numFetures, numClasses)
+    else:
+        model.fc = torch.nn.Identity()
     return model
 
 num_features_dict = {'resnet18': 512,
@@ -277,12 +281,16 @@ def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints:
         'loss': loss,
         }, f'{checkpoints}/model-{nn}-epoch-{epoch}{"-last" if flag == 2 else ""}-CrossEntropyLoss-{loss:.8f}{"-early_stop" if flag == 1 else ""}.pth')
 
-def loadNNWeights(nn: str, checkpoint: str, last_layer: bool):
+def loadNNWeights(nn: str, checkpoint: str, last_layer: bool, dataset: str):
     path = f'./checkpoints/{checkpoint}'
     ckpt = torch.load(path)
     model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-    if not last_layer:
-        model.fc = torch.nn.Identity()
+    model = getNN(nn, dataset, last_layer=last_layer)
+
+    # print(model)
+    # print("qwertyuikjhgfvdcsdx")
+    # for (name, module) in model.named_modules():
+    #     print(name, module)
 
     use_gpu = isCuda()
     if use_gpu:

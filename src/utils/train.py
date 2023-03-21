@@ -87,7 +87,7 @@ def train(nn: str, dataset: str, checkpoint: str, n_holes: int, length: int, la_
     runTensorboard()
     trainloader, valloader, testloader = dataloader(dataset, size=shape[:2], train=True, setup=None, n_holes=n_holes, length=length, normalization=normalization)
 
-    model = getNN(nn, dataset)
+    model = getNN(nn, dataset, last_layer=True)
     criterion = torch.nn.CrossEntropyLoss()
 
     if use_gpu: 

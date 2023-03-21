@@ -46,7 +46,7 @@ def extractFeatures(nn: str, datasets: list, checkpoint: str):
     global outputs_, labels_
     outputs_, labels_ = [], []
     use_gpu = isCuda()
-    model = loadNNWeights(nn, checkpoint, last_layer=False)
+    model = loadNNWeights(nn, checkpoint, last_layer=False, dataset=datasets[0])
     os.makedirs('./features/', exist_ok=True)
 
     save_name = nn
