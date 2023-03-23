@@ -2,6 +2,9 @@ import os
 import torch
 import pandas as pd
 import numpy as np
+
+from utils.evaluators.utils import get_evaluator
+from utils.postprocessors.utils import get_postprocessor
 from .utils import dataloader, getNormalization, getShape, isUltimateLayer, loadNNWeights, save_scores_
 import faiss
 from torch.utils.data import DataLoader
@@ -153,42 +156,30 @@ def measure(method: str, method_args: list):
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
     outputs, labels = [], []
     model = loadNNWeights(nn, checkpoint, last_layer=isUltimateLayer(method=method), dataset=datasets[0])
+    evaluator = get_evaluator(eval='ood', eval_args=[])
+    postprocessor = get_postprocessor(method=method, method_args=method_args)
     shape = getShape(datasets[0])
     normalization = getNormalization(datasets[0])
 
-    # trainloader = dataloader(dataset, size=shape[:2], train=False, setup=True, normalization=normalization, postprocess=True)
-    datasetLoaders = []
+    trainloader = dataloader(datasets[0], size=shape[:2], train=False, setup=True, normalization=normalization, postprocess=True)
+    idLoader, oodLoaders = {}, {}
     for dataset in datasets:
         testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
-        datasetLoaders.append(testloader)
+        if dataset == datasets[0]:
+            idLoader[dataset] = testloader
+        else:
+            oodLoaders[dataset] = testloader
 
-    save_name = nn
-    for dataset, loader in enumerate(datasetLoaders):
-        conf, gt = inference(model, loader, method, method_args)
-        save_name += f'_{datasets[dataset]}'
-        if dataset > 0:
-            gt = -dataset * np.ones_like(gt)
-        outputs.append(conf)
-        labels.append(gt)
+    postprocessor.setup(model=model, trainloader=trainloader)
 
-    outputs, labels = np.concatenate(outputs, axis=0), np.concatenate(labels, axis=0)
-    save_scores_(outputs, labels, save_name+'_'+method, './features')
+    # start calculating accuracy
+    print('\nStart evaluation...', flush=True)
+    acc_metrics = evaluator.eval_acc(model, idLoader[datasets[0]],
+                                    postprocessor)
+    print('\nAccuracy {:.2f}%'.format(100 * acc_metrics['acc']),
+            flush=True)
+    print(u'\u2500' * 70, flush=True)
 
-
-def inference(model: torch.nn.Module, data_loader: DataLoader, method: str, method_args: list):
-    conf_list, label_list = [], []
-    for batch in data_loader:
-        data = batch[0].cuda()
-        label = batch[1].cuda()
-        if method == 'odin':
-            conf = ODIN(data, model, method_args)
-        elif method == 'msp':
-            conf = MSP(data, model)
-        for idx in range(len(data)):
-            conf_list.append(conf[idx].cpu().tolist())
-            label_list.append(label[idx].cpu().tolist())
-
-    conf_list = np.array(conf_list)
-    label_list = np.array(label_list, dtype=int)
-
-    return conf_list, label_list
+    # start evaluating ood detection methods
+    evaluator.eval_ood(model, idLoader, oodLoaders, postprocessor)
+    print('Completed!', flush=True)
