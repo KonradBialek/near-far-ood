@@ -33,7 +33,7 @@ class BasePostprocessor:
         for batch in data_loader:
             data = batch[0].cuda()
             label = batch[1].cuda()
-            pred, conf = self.postprocess(model, data)
+            conf, pred = self.postprocess(model, data)
             for idx in range(len(data)):
                 pred_list.append(pred[idx].cpu().tolist())
                 conf_list.append(conf[idx].cpu().tolist())

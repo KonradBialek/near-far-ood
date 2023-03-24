@@ -51,7 +51,7 @@ def ODIN(data, model, method_args: list):
 
     # process
     data.requires_grad = True
-    output = model(data).get('avgpool')
+    output = model(data).get('fc')
     criterion = torch.nn.CrossEntropyLoss()
     labels = output.detach().argmax(axis=1)
 
@@ -72,7 +72,7 @@ def ODIN(data, model, method_args: list):
 
     # Adding small perturbations to images
     tempInputs = torch.add(data.detach(), gradient, alpha=-noise)
-    output = model(tempInputs).get('avgpool')
+    output = model(tempInputs).get('fc')
     output = output / temperature
 
     # Calculating the confidence after adding perturbations
