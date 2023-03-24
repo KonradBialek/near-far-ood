@@ -107,6 +107,11 @@ def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_ho
     else:
         if setup:
             testset = trainset
+        elif dataset == 'dtd':
+            testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
+        elif dataset == 'notmnist':
+            testset = torch.utils.data.ConcatDataset([trainset, valset])
+            testset = testset[len(testset)//2:] # exact number of samples depends on batch_size
         elif valset is not None:
             if testset is not None:
                 testset = torch.utils.data.ConcatDataset([valset, testset])
