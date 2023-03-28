@@ -4,7 +4,7 @@ import torch
 from torchvision.models.resnet import ResNet
 from torchvision.models.densenet import DenseNet
 import os
-from .utils import dataloader, getNormalization, getShape, isCuda, loadNNWeights, save_scores,  showLayers
+from .utils import dataloader, getLastLayers, getNormalization, getShape, isCuda, loadNNWeights, save_scores,  showLayers
 
 def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, use_gpu: bool, i: int, save_name = None):
     '''
@@ -21,9 +21,7 @@ def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, 
     for images, _ in testloader:
         if use_gpu: 
             images = images.cuda()
-        output = model(images)
-        features.append(output.get('avgpool').cpu().detach())
-        logits.append(output.get('fc').cpu().detach())
+        features, logits = getLastLayers(model, images)
 
     features = torch.cat(features)
     logits = torch.cat(logits)

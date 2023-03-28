@@ -5,7 +5,7 @@ import numpy as np
 
 from utils.evaluators.utils import get_evaluator
 from utils.postprocessors.utils import get_postprocessor
-from .utils import dataloader, getNormalization, getShape, isUltimateLayer, loadNNWeights, save_scores_
+from .utils import dataloader, getLastLayers, getNormalization, getShape, isUltimateLayer, loadNNWeights, save_scores_
 import faiss
 from torch.utils.data import DataLoader
 
@@ -51,7 +51,7 @@ def ODIN(data, model, method_args: list):
 
     # process
     data.requires_grad = True
-    output = model(data).get('fc')
+    output = getLastLayers(model, data)[1]
     criterion = torch.nn.CrossEntropyLoss()
     labels = output.detach().argmax(axis=1)
 
@@ -72,7 +72,7 @@ def ODIN(data, model, method_args: list):
 
     # Adding small perturbations to images
     tempInputs = torch.add(data.detach(), gradient, alpha=-noise)
-    output = model(tempInputs).get('fc')
+    output = getLastLayers(model, tempInputs)[1]
     output = output / temperature
 
     # Calculating the confidence after adding perturbations
@@ -94,7 +94,7 @@ def MSP(data, model = None):
     if isinstance(data, np.ndarray):
         score = torch.softmax(torch.tensor(data), dim=1)
     else:
-        output = model(data).get('fc')
+        output = getLastLayers(model, data)[1]
         score = torch.softmax(output, dim=1)
     return torch.max(score, dim=1)[0]
 
@@ -111,7 +111,7 @@ def MLS(data, model = None):
     if isinstance(data, np.ndarray):
         output = torch.tensor(data)
     else:
-        output = model(data).get('fc')
+        output = getLastLayers(model, data)[1]
     return torch.max(output, dim=1)[0]
 
 def measure(method: str, method_args: list):

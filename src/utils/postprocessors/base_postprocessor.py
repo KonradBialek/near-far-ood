@@ -3,37 +3,39 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
+from utils.utils import getLastLayers
+
 
 class BasePostprocessor:
     def __init__(self, method_args):
         pass
 
-    def setup(self, model: nn.Module, trainloader):
+    def setup(self, net: nn.Module, trainloader):
         pass
 
     @torch.no_grad()
-    def postprocess(self, model: nn.Module, data):
+    def postprocess(self, net: nn.Module, data):
         '''
         Measure distance with MSP.
 
         Args:
             data (np.ndarray or Tensor): Features to process.
-            model (None, ResNet or DenseNet): Model of network.
+            net (None, ResNet or DenseNet): Model of network.
         '''
         
         if isinstance(data, np.ndarray):
             score = torch.softmax(torch.tensor(data), dim=1)
         else:
-            output = model(data).get('fc')
+            output = getLastLayers(net, data)[1]
             score = torch.softmax(output, dim=1)
         return torch.max(score, dim=1)
 
-    def inference(self, model: nn.Module, data_loader: DataLoader):
+    def inference(self, net: nn.Module, data_loader: DataLoader):
         pred_list, conf_list, label_list = [], [], []
         for batch in data_loader:
             data = batch[0].cuda()
             label = batch[1].cuda()
-            conf, pred = self.postprocess(model, data)
+            conf, pred = self.postprocess(net, data)
             for idx in range(len(data)):
                 pred_list.append(pred[idx].cpu().tolist())
                 conf_list.append(conf[idx].cpu().tolist())

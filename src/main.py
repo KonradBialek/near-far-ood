@@ -12,7 +12,7 @@ train_options = ['cifar10', 'cifar100', 'dtd', 'svhn', 'tin', 'mnist', 'fashionm
 method_options = ['knn', 'odin', 'msp', 'mls', 'react', 'lof', 'mahalanobis']
 mode_options = ['train', 'extract', 'measure']
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 # common args
 parser.add_argument('-n', '--nn', default="resnet18", type=str, choices=model_options,
                     help='(str) neural network (name in pytorch/vision:v0.14.0)')
@@ -35,7 +35,16 @@ parser.add_argument('-l', '--length', type=int, default=16,
 parser.add_argument('-m', '--method', default="knn", type=str, choices=method_options,
                     help='(str) out-of-distribution method - lowercase')
 parser.add_argument('-A', '--method_args', nargs='+', default=["50"], type=str,
-                    help='(list) out-of-distribution method arguments')
+                    help='''(list) out-of-distribution method arguments
+order:
+KNN: K
+ODIN: temperature, noise
+MSP: -
+MLS: -
+ReAct: percentile
+LOF: ?
+Mach: ?
+''')
 parser.set_defaults(argument=True)
 
 # required in extract, optional in train and measure:

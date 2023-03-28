@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from utils.postprocessors import BasePostprocessor
+from utils.utils import getLastLayers
 
 
 def to_np(x):
@@ -37,7 +38,7 @@ class BaseEvaluator:
                 target = batch[1].cuda()
 
                 # forward
-                output = net(data).get("fc")
+                output = getLastLayers(net, data)[1]
                 loss = F.cross_entropy(output, target)
 
                 # accuracy
@@ -68,7 +69,7 @@ class BaseEvaluator:
                 data = batch[0].cuda()
                 label = batch[1]
 
-                feat = net(data).get("avgpool")
+                feat = getLastLayers(net, data)[0]
                 feat_list.extend(to_np(feat))
                 label_list.extend(to_np(label))
 

@@ -290,7 +290,13 @@ def loadNNWeights(nn: str, checkpoint: str, last_layer: bool, dataset: str):
     path = f'./checkpoints/{checkpoint}'
     ckpt = torch.load(path)
     model = getNN(nn, dataset, last_layer=last_layer)
-    model = create_feature_extractor(model, ['avgpool', 'fc'])
+    if nn == 'resnet18':
+        # model = create_feature_extractor(model, ['conv1', 'bn1', 'relu', 'maxpool', 'layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc']) # maybe for mds
+        model = create_feature_extractor(model, ['avgpool', 'fc'])
+    elif nn == 'densenet121':
+        model = create_feature_extractor(model, ['features', 'classifier'])
+    else:
+        raise NotImplementedError("Not known.")
 
     use_gpu = isCuda()
     if use_gpu:
@@ -316,3 +322,13 @@ def save_scores_(fetures, labels, save_name, save_dir):
     np.savez(os.path.join(save_dir, save_name),
                 fetures=fetures,
                 labels=labels)
+    
+def getLastLayers(model, data):
+    out = model(data)
+    if hasattr(model, 'fc'):
+        features, logits = out.get("avgpool"), out.get("fc")
+    elif hasattr(model, 'classifier'):
+        features, logits = out.get("fetures"), out.get("classifier")
+    else:
+        raise NotImplementedError("Not known.")
+    return features, logits
