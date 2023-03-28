@@ -25,14 +25,15 @@ class Convert:
         return image.convert(self.mode)
     
 
-ultimate_layer_methods = ['msp', 'mls', 'react']
-penultimate_layer_methods = ['knn', 'odin', 'lof', 'mahalanobis']
+ultimate_layer_methods = ['msp', 'mls', 'odin']
+penultimate_layer_methods = ['knn', 'react']
+# undefined = ['lof', 'mahalanobis']
 
-def isUltimateLayer(method: str):
+def bothLayers(method: str):
     if method in ultimate_layer_methods:
-        return True
-    elif method in penultimate_layer_methods:
         return False
+    elif method in penultimate_layer_methods:
+        return True
     else:
         raise NotImplementedError(f'Method is not known.')
 
@@ -250,14 +251,14 @@ num_classes_dict = {'cifar10': 10,
                     'tin': 1000,
 }
 
-def getNN(nn: str, dataset: str, last_layer: bool):
+def getNN(nn: str, dataset: str):
     model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-    if last_layer:
-        numFetures = num_features_dict[nn]
-        numClasses = num_classes_dict[dataset]
+    numFetures = num_features_dict[nn]
+    numClasses = num_classes_dict[dataset]
+    if nn.startswith('resnet'):
         model.fc = torch.nn.Linear(numFetures, numClasses)
-    else:
-        model.fc = torch.nn.Identity()
+    elif nn.startswith('densenet'):
+        model.classifier = torch.nn.Linear(numFetures, numClasses)
     return model
 
 num_features_dict = {'resnet18': 512,
@@ -286,25 +287,23 @@ def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints:
         'loss': loss,
         }, f'{checkpoints}/model-{nn}-epoch-{epoch}{"-last" if flag == 2 else ""}-CrossEntropyLoss-{loss:.8f}{"-early_stop" if flag == 1 else ""}.pth')
 
-def loadNNWeights(nn: str, checkpoint: str, last_layer: bool, dataset: str):
+def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str):
     path = f'./checkpoints/{checkpoint}'
     ckpt = torch.load(path)
-    model = getNN(nn, dataset, last_layer=last_layer)
-    if nn == 'resnet18':
-        # model = create_feature_extractor(model, ['conv1', 'bn1', 'relu', 'maxpool', 'layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc']) # maybe for mds
-        model = create_feature_extractor(model, ['avgpool', 'fc'])
-    elif nn == 'densenet121':
-        model = create_feature_extractor(model, ['features', 'classifier'])
-    else:
-        raise NotImplementedError("Not known.")
+    model = getNN(nn, dataset)
+    if both_layers:
+        if nn.startswith('resnet'):
+            # model = create_feature_extractor(model, ['conv1', 'bn1', 'relu', 'maxpool', 'layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc']) # maybe for mds
+            model = create_feature_extractor(model, ['avgpool', 'fc'])
+        elif nn.startswith('densenet'):
+            model = create_feature_extractor(model, ['features', 'classifier'])
+        else:
+            raise NotImplementedError("Not known.")
 
     use_gpu = isCuda()
     if use_gpu:
         model = model.cuda()
-    if last_layer:
-        missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'])
-    else:
-        missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'], strict=False)
+    missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'])
     # print(missing_keys)
     # print(unexpected_keys)
     model.eval()

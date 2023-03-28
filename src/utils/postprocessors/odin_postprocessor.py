@@ -18,7 +18,8 @@ class ODINPostprocessor(BasePostprocessor):
 
     def postprocess(self, net: nn.Module, data: Any):
         data.requires_grad = True
-        output = getLastLayers(net, data)[1]
+        output = net(data)
+        # output = getLastLayers(net, data)[1]
 
         # Calculating the perturbation we need to add, that is,
         # the sign of gradient of cross entropy loss w.r.t. input
@@ -43,7 +44,8 @@ class ODINPostprocessor(BasePostprocessor):
 
         # Adding small perturbations to images
         tempInputs = torch.add(data.detach(), gradient, alpha=-self.noise)
-        output = getLastLayers(net, tempInputs)[1]
+        output = net(tempInputs)
+        # output = getLastLayers(net, tempInputs)[1]
         output = output / self.temperature
 
         # Calculating the confidence after adding perturbations

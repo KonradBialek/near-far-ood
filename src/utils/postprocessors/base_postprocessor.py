@@ -26,7 +26,8 @@ class BasePostprocessor:
         if isinstance(data, np.ndarray):
             score = torch.softmax(torch.tensor(data), dim=1)
         else:
-            output = getLastLayers(net, data)[1]
+            output =net(data)
+            # output = getLastLayers(net, data)[1]
             score = torch.softmax(output, dim=1)
         return torch.max(score, dim=1)
 

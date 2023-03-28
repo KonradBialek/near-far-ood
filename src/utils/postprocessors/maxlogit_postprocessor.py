@@ -14,5 +14,6 @@ class MaxLogitPostprocessor(BasePostprocessor):
 
     @torch.no_grad()
     def postprocess(self, net: nn.Module, data: Any):
-        output = getLastLayers(net, data)[1]
+        output = net(data)
+        # output = getLastLayers(net, data)[1]
         return torch.max(output, dim=1)

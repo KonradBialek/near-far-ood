@@ -5,7 +5,7 @@ import numpy as np
 
 from utils.evaluators.utils import get_evaluator
 from utils.postprocessors.utils import get_postprocessor
-from .utils import dataloader, getLastLayers, getNormalization, getShape, isUltimateLayer, loadNNWeights, save_scores_
+from .utils import dataloader, getLastLayers, getNormalization, getShape, bothLayers, loadNNWeights, save_scores_
 import faiss
 from torch.utils.data import DataLoader
 
@@ -51,7 +51,8 @@ def ODIN(data, model, method_args: list):
 
     # process
     data.requires_grad = True
-    output = getLastLayers(model, data)[1]
+    output = model(data)
+    # output = getLastLayers(model, data)[1]
     criterion = torch.nn.CrossEntropyLoss()
     labels = output.detach().argmax(axis=1)
 
@@ -72,7 +73,8 @@ def ODIN(data, model, method_args: list):
 
     # Adding small perturbations to images
     tempInputs = torch.add(data.detach(), gradient, alpha=-noise)
-    output = getLastLayers(model, tempInputs)[1]
+    output = model(tempInputs)
+    # output = getLastLayers(model, tempInputs)[1]
     output = output / temperature
 
     # Calculating the confidence after adding perturbations
@@ -94,7 +96,8 @@ def MSP(data, model = None):
     if isinstance(data, np.ndarray):
         score = torch.softmax(torch.tensor(data), dim=1)
     else:
-        output = getLastLayers(model, data)[1]
+        output = model(data)
+        # output = getLastLayers(model, data)[1]
         score = torch.softmax(output, dim=1)
     return torch.max(score, dim=1)[0]
 
@@ -111,7 +114,8 @@ def MLS(data, model = None):
     if isinstance(data, np.ndarray):
         output = torch.tensor(data)
     else:
-        output = getLastLayers(model, data)[1]
+        output = model(data)
+        # output = getLastLayers(model, data)[1]
     return torch.max(output, dim=1)[0]
 
 def measure(method: str, method_args: list):
@@ -122,22 +126,22 @@ def measure(method: str, method_args: list):
         method (str): Requested method.
         method_args (list): List of method's aruments.
     '''
-    last_layer = isUltimateLayer(method=method)
+    both_layers = bothLayers(method=method)
     for file in os.listdir('./features/'):
         if file.endswith('setup.npz'):
             path = f'./features/{file}'
-            if last_layer:
-                data_ = np.load(path)['logits']
-            else:
+            if both_layers:
                 data_ = np.load(path)['features']
+            else:
+                data_ = np.load(path)['logits']
 
     for file in os.listdir('./features/'):
         if file.endswith('.npz'):
             path = f'./features/{file}'
-            if last_layer:
-                data = np.load(path)['logits']
-            else:
+            if both_layers:
                 data = np.load(path)['features']
+            else:
+                data = np.load(path)['logits']
             label = np.load(path)['labels']
             if data.ndim > 1 and not file.endswith('setup.npz'):
                 if data.shape[1] > 2:
@@ -155,7 +159,7 @@ def measure(method: str, method_args: list):
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
     outputs, labels = [], []
-    model = loadNNWeights(nn, checkpoint, last_layer=isUltimateLayer(method=method), dataset=datasets[0])
+    model = loadNNWeights(nn, checkpoint, both_layers=bothLayers(method=method), dataset=datasets[0])
     evaluator = get_evaluator(eval='ood', eval_args=[])
     postprocessor = get_postprocessor(method=method, method_args=method_args)
     shape = getShape(datasets[0])

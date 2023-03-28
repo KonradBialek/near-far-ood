@@ -38,7 +38,10 @@ class BaseEvaluator:
                 target = batch[1].cuda()
 
                 # forward
-                output = getLastLayers(net, data)[1]
+                try: 
+                    output = getLastLayers(net, data)[1]
+                except:
+                    output = net(data)
                 loss = F.cross_entropy(output, target)
 
                 # accuracy
