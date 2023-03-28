@@ -38,12 +38,14 @@ parser.add_argument('-A', '--method_args', nargs='+', default=["50"], type=str,
                     help='''(list) out-of-distribution method arguments
 order:
 KNN: K
-ODIN: temperature noise
+ODIN: temperature noise preprocessing normalization_dataset
+preprocessing = ['true', '1', 't', 'y', 'yes']
+normalization_dataset = ['cifar10', 'cifar100', 'dtd', 'svhn', 'tin', 'mnist', 'fashionmnist']
 MSP: -
 MLS: -
 ReAct: percentile
 LOF: n_neighbors contamination
-Mach: ? # todo args
+Machalanobis: ? # todo args
 ''')
 parser.set_defaults(argument=True)
 

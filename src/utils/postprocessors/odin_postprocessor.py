@@ -4,7 +4,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from utils.utils import getLastLayers
+from utils.utils import getLastLayers, getNormalization
 
 from .base_postprocessor import BasePostprocessor
 
@@ -15,6 +15,8 @@ class ODINPostprocessor(BasePostprocessor):
 
         self.temperature = int(method_args[0])
         self.noise = float(method_args[1])
+        self.preprocessing = method_args[2].lower() in ['true', '1', 't', 'y', 'yes']
+        self.normalization_dataset = getNormalization(method_args[3])[1]
 
     def postprocess(self, net: nn.Module, data: Any):
         data.requires_grad = True
@@ -33,20 +35,21 @@ class ODINPostprocessor(BasePostprocessor):
         loss = criterion(output, labels)
         loss.backward()
 
-        # Normalizing the gradient to binary in {0, 1}
-        gradient = torch.ge(data.grad.detach(), 0)
-        gradient = (gradient.float() - 0.5) * 2
+        if self.preprocessing:
+            # Normalizing the gradient to binary in {0, 1}
+            gradient = torch.ge(data.grad.detach(), 0)
+            gradient = (gradient.float() - 0.5) * 2
 
-        # Scaling values taken from original code
-        gradient[:, 0] = (gradient[:, 0]) / (63.0 / 255.0)
-        gradient[:, 1] = (gradient[:, 1]) / (62.1 / 255.0)
-        gradient[:, 2] = (gradient[:, 2]) / (66.7 / 255.0)
+            # Scaling values taken from original code
+            gradient[:, 0] = (gradient[:, 0]) / self.normalization_datase[0]
+            gradient[:, 1] = (gradient[:, 1]) / self.normalization_datase[1]
+            gradient[:, 2] = (gradient[:, 2]) / self.normalization_datase[2]
 
-        # Adding small perturbations to images
-        tempInputs = torch.add(data.detach(), gradient, alpha=-self.noise)
-        output = net(tempInputs)
-        # output = getLastLayers(net, tempInputs)[1]
-        output = output / self.temperature
+            # Adding small perturbations to images
+            tempInputs = torch.add(data.detach(), gradient, alpha=-self.noise)
+            output = net(tempInputs)
+            # output = getLastLayers(net, tempInputs)[1]
+            output = output / self.temperature
 
         # Calculating the confidence after adding perturbations
         nnOutput = output.detach()
