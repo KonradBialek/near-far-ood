@@ -38,12 +38,12 @@ parser.add_argument('-A', '--method_args', nargs='+', default=["50"], type=str,
                     help='''(list) out-of-distribution method arguments
 order:
 KNN: K
-ODIN: temperature, noise
+ODIN: temperature noise
 MSP: -
 MLS: -
 ReAct: percentile
-LOF: ?
-Mach: ?
+LOF: n_neighbors contamination
+Mach: ? # todo args
 ''')
 parser.set_defaults(argument=True)
 

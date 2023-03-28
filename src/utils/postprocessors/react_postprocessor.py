@@ -13,7 +13,7 @@ from .base_postprocessor import BasePostprocessor
 class ReactPostprocessor(BasePostprocessor):
     def __init__(self, mthod_args):
         super(ReactPostprocessor, self).__init__(mthod_args)
-        self.percentile = mthod_args[0]
+        self.percentile = int(mthod_args[0])
 
     def setup(self, net: nn.Module, trainloader):
         activation_log = []

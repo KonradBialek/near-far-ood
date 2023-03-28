@@ -13,8 +13,8 @@ class ODINPostprocessor(BasePostprocessor):
     def __init__(self, method_args):
         super().__init__(method_args)
 
-        self.temperature = method_args[0]
-        self.noise = method_args[1]
+        self.temperature = int(method_args[0])
+        self.noise = float(method_args[1])
 
     def postprocess(self, net: nn.Module, data: Any):
         data.requires_grad = True

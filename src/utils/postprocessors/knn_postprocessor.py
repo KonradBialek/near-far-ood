@@ -16,7 +16,7 @@ normalizer = lambda x: x / np.linalg.norm(x, axis=-1, keepdims=True) + 1e-10
 class KNNPostprocessor(BasePostprocessor):
     def __init__(self, method_args):
         super(KNNPostprocessor, self).__init__(method_args)
-        self.K = method_args[0]
+        self.K = int(method_args[0])
 
     def setup(self, net: nn.Module, trainloader):
         activation_log = []
