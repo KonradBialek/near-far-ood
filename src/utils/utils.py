@@ -26,7 +26,7 @@ class Convert:
     
 
 ultimate_layer_methods = ['msp', 'mls', 'odin']
-penultimate_layer_methods = ['knn', 'react']
+penultimate_layer_methods = ['knn', 'react', 'lof']
 # undefined = ['lof', 'mahalanobis']
 
 def bothLayers(method: str):
@@ -47,7 +47,7 @@ def updateWriter(mode: str, loss: float, acc: float, epoch: int):
     writer.add_scalar(f"loss/{mode}", loss, epoch)
     writer.add_scalar(f"acc/{mode}", acc, epoch)
 
-def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, postprocess = False):
+def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, postprocess = False):
     '''
     Load dataset.
 
@@ -97,7 +97,23 @@ def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_ho
             transforms.Normalize(normalization[0], normalization[1]),
         ])
 
-    trainset, valset, testset, _ = getDataset(dataset, transform, transform_val)
+    if isinstance(dataset, str):
+        trainset, valset, testset, _ = getDataset(dataset, transform, transform_val)
+    elif isinstance(dataset, list):
+        testset_ = []
+        for dataset_ in dataset:
+            target = -1 if dataset_ == dataset[0] else 1
+            trainset, valset, testset, _ = getDataset(dataset_, transform, transform_val, target_transform=transforms.Lambda(lambda x: target))
+            if dataset_ == 'dtd':
+                testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
+            elif dataset_ == 'notmnist':
+                testset = torch.utils.data.ConcatDataset([trainset, valset])
+                testset = testset[len(testset)//2:] # exact number of samples depends on batch_size
+            if testset is None:
+                testset = valset
+            testset_.append(testset)
+        testset = torch.utils.data.ConcatDataset(testset_) # it changes -1 to 1 for ID part of dataset
+        testset = tuple((testset[i][0], -1) if i < contamination_dict[dataset[0]] else testset[i] for i in range(len(testset)))
 
     if train:
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
@@ -109,11 +125,6 @@ def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_ho
     else:
         if setup:
             testset = trainset
-        elif dataset == 'dtd':
-            testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
-        elif dataset == 'notmnist':
-            testset = torch.utils.data.ConcatDataset([trainset, valset])
-            testset = testset[len(testset)//2:] # exact number of samples depends on batch_size
         elif valset is not None:
             if testset is not None:
                 testset = torch.utils.data.ConcatDataset([valset, testset])
@@ -122,61 +133,61 @@ def dataloader(dataset: str, size = (32, 32), train = False, setup = False, n_ho
         testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
         return testloader
 
-def getDataset(dataset: str, transform = None, transform_val = None):
+def getDataset(dataset: str, transform = None, transform_val = None, target_transform = None):
     valset = testset = extraset = None
     os.makedirs('./data', exist_ok=True)
     if dataset == 'cifar10':
-        trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-        valset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val)
+        trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform, target_transform=target_transform)
+        valset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_val, target_transform=target_transform)
     
     elif dataset == 'cifar100':
-        trainset = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform)
-        valset = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val)
+        trainset = torchvision.datasets.CIFAR100(root='./data', train=True, download=True, transform=transform, target_transform=target_transform)
+        valset = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_val, target_transform=target_transform)
 
     elif dataset == 'dtd':
-        trainset = torchvision.datasets.DTD(root='./data', download=True, transform=transform)
-        valset = torchvision.datasets.DTD(root='./data', split='val', download=True, transform=transform_val)
-        testset = torchvision.datasets.DTD(root='./data', split='test', download=True, transform=transform_val)
+        trainset = torchvision.datasets.DTD(root='./data', download=True, transform=transform, target_transform=target_transform)
+        valset = torchvision.datasets.DTD(root='./data', split='val', download=True, transform=transform_val, target_transform=target_transform)
+        testset = torchvision.datasets.DTD(root='./data', split='test', download=True, transform=transform_val, target_transform=target_transform)
     
     elif dataset == 'fashionmnist':
-        trainset = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform)
-        valset = torchvision.datasets.FashionMNIST(root='./data', train=False, download=True, transform=transform_val)
+        trainset = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform, target_transform=target_transform)
+        valset = torchvision.datasets.FashionMNIST(root='./data', train=False, download=True, transform=transform_val, target_transform=target_transform)
     
     elif dataset == 'mnist':
-        trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-        valset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_val)
+        trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform, target_transform=target_transform)
+        valset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform_val, target_transform=target_transform)
     
     elif dataset == 'places365':
-        trainset = torchvision.datasets.Places365(root='./data', download=True, transform=transform, small=True)
-        valset = torchvision.datasets.Places365(root='./data', split='val', download=True, transform=transform_val, small=True)
+        trainset = torchvision.datasets.Places365(root='./data', download=True, transform=transform, target_transform=target_transform, small=True)
+        valset = torchvision.datasets.Places365(root='./data', split='val', download=True, transform=transform_val, target_transform=target_transform, small=True)
     
     elif dataset == 'svhn':
-        trainset = torchvision.datasets.SVHN(root='./data', download=True, transform=transform)
-        testset = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform_val)
-        # extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform)
+        trainset = torchvision.datasets.SVHN(root='./data', download=True, transform=transform, target_transform=target_transform)
+        valset = torchvision.datasets.SVHN(root='./data', split='test', download=True, transform=transform_val, target_transform=target_transform)
+        # extraset = torchvision.datasets.SVHN(root='./data', split='extra', download=True, transform=transform, target_transform=target_transform)
         # trainset = torch.utils.data.ConcatDataset([trainset, extraset]) # no extraset
     else:
         dataset_path = f'./data/{dataset}/'
         if dataset == 'notmnist':
-            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
-            valset = torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val)
+            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform, target_transform=target_transform)
+            valset = torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val, target_transform=target_transform)
         elif dataset == 'tin':
-            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
-            valset = processValTIN(dataset_path, transform_val) # if tiny imagenet val in raw form
+            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform, target_transform=target_transform)
+            valset = processValTIN(dataset_path=dataset_path, transform_val=transform_val, target_transform=target_transform) # if tiny imagenet val in raw form
         else:
-            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
+            trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform, target_transform=target_transform)
             try:
-                valset = torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val)
+                valset = torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val, target_transform=target_transform)
             except:
                 warn('No validation set.')
             try:
-                testset = torchvision.datasets.ImageFolder(dataset_path + 'test', transform=transform_val)
+                testset = torchvision.datasets.ImageFolder(dataset_path + 'test', transform=transform_val, target_transform=target_transform)
             except:
                 warn('No test set.')
 
     return trainset, valset, testset, extraset
 
-def processValTIN(dataset_path: str, transform_val):
+def processValTIN(dataset_path: str, transform_val, target_transform):
     if len(os.listdir(dataset_path + 'val')) != 200:
         df = pd.read_csv(dataset_path + 'val/val_annotations.txt', delimiter='\t')
         for dir_ in next(os.walk(dataset_path + 'train'))[1]:
@@ -187,7 +198,7 @@ def processValTIN(dataset_path: str, transform_val):
         shutil.move(f'{dataset_path}val/val_annotations.txt', f'{dataset_path}val/images/val_annotations.txt')
         shutil.move(f'{dataset_path}val/images', dataset_path)  
 
-    return torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val)
+    return torchvision.datasets.ImageFolder(dataset_path + 'val', transform=transform_val, target_transform=target_transform)
 
 
 class AverageMeter(object):
@@ -250,6 +261,17 @@ num_classes_dict = {'cifar10': 10,
                     'dtd': 47,
                     'places365': 365,
                     'tin': 1000,
+}
+
+contamination_dict = {'cifar10': 10000,
+                    'cifar100': 10000,
+                    'svhn': 13700,
+                    'mnist': 10000,
+                    'fashionmnist': 10000,
+                    'notmnist': 9362,
+                    'dtd': 5640,
+                    'places365': 36500,
+                    'tin': 10000,
 }
 
 def getNN(nn: str, dataset: str):
@@ -332,3 +354,10 @@ def getLastLayers(model, data):
     else:
         raise NotImplementedError("Not known.")
     return features, logits
+
+def calculateContamination(datasets):
+    sum = 0
+    id = contamination_dict[datasets[0]]
+    for dataset in datasets:
+        sum += contamination_dict[dataset]
+    return min(1 - id / sum, 0.5)

@@ -4,17 +4,18 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from .base_postprocessor import BasePostprocessor
 
 from utils.utils import getLastLayers
 
 
-class LocalOutlierFactorPostprocessor:
+class LocalOutlierFactorPostprocessor(BasePostprocessor):
     def __init__(self, method_args):
-        super(LocalOutlierFactorPostprocessor, self).__init__(method_args)
+        super().__init__(method_args)
         self.n_neighbors = int(method_args[0])
         self.contamination = float(method_args[1])
 
-    def setup(self, net: nn.Module, trainloader):
+    def setup(self, net: nn.Module, trainloader, postprocessor = None):
         activation_log = []
         net.eval()
         with torch.no_grad():
@@ -27,9 +28,13 @@ class LocalOutlierFactorPostprocessor:
 
                 batch_size = data.shape[0]
 
-                feature = getLastLayers(net, data)[0]
+                if postprocessor is None:
+                    feature = getLastLayers(net, data)[0]
+                    dim = feature.shape[1]
+                else:
+                    feature = postprocessor.postprocess(net, data)[0]
+                    dim = 1
 
-                dim = feature.shape[1]
                 activation_log.append(feature.data.cpu().numpy().reshape(
                     batch_size, dim, -1).mean(2))
 
@@ -50,7 +55,8 @@ class LocalOutlierFactorPostprocessor:
         '''
         if not isinstance(data, np.ndarray):
             data = getLastLayers(net, data)[0]
-            data = data.data.cpu().numpy()
+            data = data.data.cpu().numpy().reshape(
+                    data.shape[0], data.shape[1], -1).mean(2)
 
         pred = torch.Tensor(self.clf.predict(data))
         conf = torch.Tensor(self.clf.score_samples(data))

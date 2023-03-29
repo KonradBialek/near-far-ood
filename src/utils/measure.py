@@ -5,7 +5,7 @@ import numpy as np
 
 from utils.evaluators.utils import get_evaluator
 from utils.postprocessors.utils import get_postprocessor
-from .utils import dataloader, getLastLayers, getNormalization, getShape, bothLayers, loadNNWeights, save_scores_
+from .utils import calculateContamination, dataloader, getLastLayers, getNormalization, getShape, bothLayers, loadNNWeights, save_scores_
 import faiss
 from torch.utils.data import DataLoader
 
@@ -159,13 +159,23 @@ def measure(method: str, method_args: list):
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
     outputs, labels = [], []
+    lof = None
     model = loadNNWeights(nn, checkpoint, both_layers=bothLayers(method=method), dataset=datasets[0])
     evaluator = get_evaluator(eval='ood', eval_args=[])
-    postprocessor = get_postprocessor(method=method, method_args=method_args)
+    if method != 'lof':
+        postprocessor = get_postprocessor(method=method, method_args=method_args)
+        lof = get_postprocessor(method='lof', method_args=[20, calculateContamination(datasets)])
+    else:
+        method_args.append(calculateContamination(datasets))
+        postprocessor = get_postprocessor(method=method, method_args=method_args)
     shape = getShape(datasets[0])
     normalization = getNormalization(datasets[0])
 
     trainloader = dataloader(datasets[0], size=shape[:2], train=False, setup=True, normalization=normalization, postprocess=True)
+    postprocessor.setup(net=model, trainloader=trainloader)
+    if method != 'lof':
+        lof.setup(net=model, trainloader=trainloader, postprocessor=postprocessor)
+
     idLoader, oodLoaders = {}, {}
     for dataset in datasets:
         testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
@@ -173,8 +183,6 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
             idLoader[dataset] = testloader
         else:
             oodLoaders[dataset] = testloader
-
-    postprocessor.setup(model=model, trainloader=trainloader)
 
     # start calculating accuracy
     print('\nStart evaluation...', flush=True)
@@ -187,3 +195,11 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
     # start evaluating ood detection methods
     evaluator.eval_ood(model, idLoader, oodLoaders, postprocessor)
     print('Completed!', flush=True)
+
+    testloader = dataloader(datasets, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
+    print('\nOOD...', flush=True)
+    acc_metrics = evaluator.eval_acc(model, testloader,
+                                    postprocessor, lof=lof)
+    print('\nAccuracy {:.2f}%'.format(100 * acc_metrics['acc']),
+            flush=True)
+    print(u'\u2500' * 70, flush=True)

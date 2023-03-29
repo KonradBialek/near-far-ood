@@ -15,7 +15,7 @@ class ReactPostprocessor(BasePostprocessor):
         super(ReactPostprocessor, self).__init__(mthod_args)
         self.percentile = int(mthod_args[0])
 
-    def setup(self, net: nn.Module, trainloader):
+    def setup(self, net: nn.Module, trainloader, postprocessor = None):
         activation_log = []
         net.eval()
         with torch.no_grad():

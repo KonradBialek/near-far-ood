@@ -44,7 +44,7 @@ normalization_dataset = ['cifar10', 'cifar100', 'dtd', 'svhn', 'tin', 'mnist', '
 MSP: -
 MLS: -
 ReAct: percentile
-LOF: n_neighbors contamination
+LOF: n_neighbors (comment: contamination argument is calculated automaticly based on concatenated datasets)
 Machalanobis: ? # todo args
 ''')
 parser.set_defaults(argument=True)
