@@ -65,14 +65,9 @@ def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup 
     '''
     valloader = testloader = None
     
-    if dataset in ['mnist', 'fashionmnist', 'notmnist']: # nn must be colorful so must dataset
-        convert = Convert('RGB')
-    else:
-        convert = transforms.Lambda(lambda x: x)
-
     if train:
         transform = transforms.Compose([
-            convert,
+            Convert('RGB'),
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC), # for irregular datasets
             transforms.RandomCrop(size[0], padding=4),
             transforms.RandomHorizontalFlip(),  
@@ -81,14 +76,14 @@ def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup 
             Cutout(n_holes=n_holes, length=length),
         ])
         transform_val = transforms.Compose([
-            convert,
+            Convert('RGB'),
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
             transforms.ToTensor(),
             transforms.Normalize(normalization[0], normalization[1]),
         ])
     elif postprocess:
         transform = transform_val = transforms.Compose([
-            convert,
+            Convert('RGB'),
             transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
             # transforms.CenterCrop(size),
             # transforms.RandomHorizontalFlip(),
