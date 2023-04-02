@@ -108,7 +108,7 @@ def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup 
                 testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
             elif dataset_ == 'notmnist':
                 testset = torch.utils.data.ConcatDataset([trainset, valset])
-                testset = testset[len(testset)//2:] # exact number of samples depends on batch_size
+                testset = testset[18724 - contamination_dict['notmnist']:] # exact number of samples depends on batch_size
             if testset is None:
                 testset = valset
             testset_.append(testset)
@@ -275,13 +275,19 @@ contamination_dict = {'cifar10': 10000,
 }
 
 def getNN(nn: str, dataset: str):
-    model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-    numFetures = num_features_dict[nn]
-    numClasses = num_classes_dict[dataset]
-    if nn.startswith('resnet'):
-        model.fc = torch.nn.Linear(numFetures, numClasses)
-    elif nn.startswith('densenet'):
-        model.classifier = torch.nn.Linear(numFetures, numClasses)
+    if dataset != 'tin':
+        model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
+        numFetures = num_features_dict[nn]
+        numClasses = num_classes_dict[dataset]
+        if nn.startswith('resnet'):
+            model.fc = torch.nn.Linear(numFetures, numClasses)
+        elif nn.startswith('densenet'):
+            model.classifier = torch.nn.Linear(numFetures, numClasses)
+    else:
+        if nn.startswith('resnet18'):
+            model = torch.hub.load('pytorch/vision:v0.14.0', nn, weights='ResNet18_Weights.IMAGENET1K_V1') 
+        elif nn.startswith('densenet121'):
+            model = torch.hub.load('pytorch/vision:v0.14.0', nn, weights='DenseNet121_Weights.IMAGENET1K_V1') 
     return model
 
 num_features_dict = {'resnet18': 512,
@@ -326,9 +332,36 @@ def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str):
     use_gpu = isCuda()
     if use_gpu:
         model = model.cuda()
-    missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'])
-    # print(missing_keys)
-    # print(unexpected_keys)
+    if dataset != 'tin':
+        if nn.startswith('resnet'):
+            if 'model_state_dict' in ckpt.keys():
+                try:
+                    missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'], strict=False)
+                except:
+                    model.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+                    missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'], strict=False)
+            elif 'conv1' in ckpt.keys():
+                try:
+                    missing_keys, unexpected_keys = model.load_state_dict(ckpt, strict=False)
+                except:
+                    model.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=3, bias=False)
+                    missing_keys, unexpected_keys = model.load_state_dict(ckpt, strict=False)
+        elif nn.startswith('densenet'):
+            if 'model_state_dict' in ckpt.keys():
+                try:
+                    missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'], strict=False)
+                except:
+                    # correct layers
+                    missing_keys, unexpected_keys = model.load_state_dict(ckpt['model_state_dict'], strict=False)
+            elif 'features.conv0.weight' in ckpt.keys():
+                try:
+                    missing_keys, unexpected_keys = model.load_state_dict(ckpt, strict=False)
+                except:
+                    # correct layers
+                    missing_keys, unexpected_keys = model.load_state_dict(ckpt, strict=False)
+    
+    # print(missing_keys, len(missing_keys))
+    # print(unexpected_keys, len(unexpected_keys))
     model.eval()
     return model
 
