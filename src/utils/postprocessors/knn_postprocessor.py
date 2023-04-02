@@ -45,7 +45,8 @@ class KNNPostprocessor(BasePostprocessor):
     @torch.no_grad()
     def postprocess(self, net: nn.Module, data: Any):
         feature, output = getLastLayers(net, data)
-        feature_normed = normalizer(feature.data.cpu().numpy())
+        feature_normed = normalizer(feature.data.cpu().numpy().reshape(
+                    feature.shape[0], feature.shape[1], -1).mean(2))
         D, _ = self.index.search(
             feature_normed,
             self.K,

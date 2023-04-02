@@ -3,6 +3,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 
 from utils.utils import getLastLayers, getNormalization
 
@@ -20,6 +21,7 @@ class ODINPostprocessor(BasePostprocessor):
 
     def postprocess(self, net: nn.Module, data: Any):
         data.requires_grad = True
+        data.grad = torch.gradient(data)[0]
         output = net(data)
         # output = getLastLayers(net, data)[1]
 
@@ -33,6 +35,7 @@ class ODINPostprocessor(BasePostprocessor):
         output = output / self.temperature
 
         loss = criterion(output, labels)
+        loss = Variable(loss, requires_grad=True)
         loss.backward()
 
         if self.preprocessing:
@@ -41,9 +44,9 @@ class ODINPostprocessor(BasePostprocessor):
             gradient = (gradient.float() - 0.5) * 2
 
             # Scaling values taken from original code
-            gradient[:, 0] = (gradient[:, 0]) / self.normalization_datase[0]
-            gradient[:, 1] = (gradient[:, 1]) / self.normalization_datase[1]
-            gradient[:, 2] = (gradient[:, 2]) / self.normalization_datase[2]
+            gradient[:, 0] = (gradient[:, 0]) / self.normalization_dataset[0]
+            gradient[:, 1] = (gradient[:, 1]) / self.normalization_dataset[1]
+            gradient[:, 2] = (gradient[:, 2]) / self.normalization_dataset[2]
 
             # Adding small perturbations to images
             tempInputs = torch.add(data.detach(), gradient, alpha=-self.noise)
