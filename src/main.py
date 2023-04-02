@@ -39,13 +39,18 @@ parser.add_argument('-A', '--method_args', nargs='+', default=["50"], type=str,
 order:
 KNN: K
 ODIN: temperature noise preprocessing normalization_dataset
-preprocessing = ['true', '1', 't', 'y', 'yes']
+preprocessing = ['true', '1', 't', 'y', 'yes'] (from this list if True, other if False)
 normalization_dataset = ['cifar10', 'cifar100', 'dtd', 'svhn', 'tin', 'mnist', 'fashionmnist']
 MSP: -
 MLS: -
 ReAct: percentile
 LOF: n_neighbors (comment: contamination argument is calculated automaticly based on concatenated datasets)
 Machalanobis: ? # todo args
+examples:
+KNN: 50
+ODIN: 1000 1.4e-3 true cifar10
+ReAct: 90
+LOF: 20
 ''')
 parser.set_defaults(argument=True)
 
