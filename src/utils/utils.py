@@ -103,7 +103,8 @@ def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup 
                 testset = torch.utils.data.ConcatDataset([trainset, valset, testset])
             elif dataset_ == 'notmnist':
                 testset = torch.utils.data.ConcatDataset([trainset, valset])
-                testset = testset[18724 - contamination_dict['notmnist']:] # exact number of samples depends on batch_size
+                half_size = len(testset)//2
+                testset = torch.utils.data.Subset(testset, range(half_size, len(testset)))
             if testset is None:
                 testset = valset
             testset_.append(testset)
