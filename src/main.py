@@ -78,7 +78,7 @@ def main():
         else:
             print('Provide checkpoint file.')
     elif args.mode == 'measure':
-            if args.method in ['knn']:
+            if args.method in []:
                 measure(method=args.method, method_args=args.method_args)
             else:
                 if args.checkpoint is not None:
