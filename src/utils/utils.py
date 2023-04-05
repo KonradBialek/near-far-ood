@@ -383,10 +383,3 @@ def getLastLayers(model, data):
     else:
         raise NotImplementedError("Not known.")
     return features, logits
-
-def calculateContamination(datasets):
-    sum = 0
-    id = contamination_dict[datasets[0]]
-    for dataset in datasets:
-        sum += contamination_dict[dataset]
-    return min(1 - id / sum, 0.5)

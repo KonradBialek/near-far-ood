@@ -18,7 +18,7 @@ class KNNPostprocessor(BasePostprocessor):
         super(KNNPostprocessor, self).__init__(method_args)
         self.K = int(method_args[0])
 
-    def setup(self, net: nn.Module, trainloader, postprocessor = None):
+    def setup(self, net: nn.Module, trainloader):
         activation_log = []
         net.eval()
         with torch.no_grad():

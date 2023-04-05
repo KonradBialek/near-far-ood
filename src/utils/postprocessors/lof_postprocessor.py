@@ -13,9 +13,8 @@ class LocalOutlierFactorPostprocessor(BasePostprocessor):
     def __init__(self, method_args):
         super().__init__(method_args)
         self.n_neighbors = int(method_args[0])
-        self.contamination = float(method_args[1])
 
-    def setup(self, net: nn.Module, trainloader, postprocessor = None):
+    def setup(self, net: nn.Module, trainloader):
         activation_log = []
         net.eval()
         with torch.no_grad():
@@ -28,18 +27,14 @@ class LocalOutlierFactorPostprocessor(BasePostprocessor):
 
                 batch_size = data.shape[0]
 
-                if postprocessor is None:
-                    feature = getLastLayers(net, data)[0]
-                    dim = feature.shape[1]
-                else:
-                    feature = postprocessor.postprocess(net, data)[0]
-                    dim = 1
+                feature = getLastLayers(net, data)[0]
 
+                dim = feature.shape[1]
                 activation_log.append(feature.data.cpu().numpy().reshape(
                     batch_size, dim, -1).mean(2))
 
         activation_log = np.concatenate(activation_log, axis=0)
-        self.clf = LocalOutlierFactor(n_neighbors=self.n_neighbors, contamination=self.contamination, novelty=True, n_jobs=-1)
+        self.clf = LocalOutlierFactor(n_neighbors=self.n_neighbors, novelty=True, n_jobs=-1)
 
         self.clf.fit(activation_log)
 

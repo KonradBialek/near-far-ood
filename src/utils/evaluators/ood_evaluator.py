@@ -144,8 +144,7 @@ class OODEvaluator(BaseEvaluator):
                  net: nn.Module,
                  data_loader: DataLoader,
                  postprocessor: BasePostprocessor = None,
-                 epoch_idx: int = -1,
-                 lof = None):
+                 epoch_idx: int = -1):
         """Returns the accuracy score of the labels and predictions.
 
         :return: float
@@ -155,7 +154,7 @@ class OODEvaluator(BaseEvaluator):
         else:
             net.eval()
         self.id_pred, self.id_conf, self.id_gt = postprocessor.inference(
-            net, data_loader, lof=lof)
+            net, data_loader)
         metrics = {}
         metrics['acc'] = sum(self.id_pred == self.id_gt) / len(self.id_pred)
         metrics['epoch_idx'] = epoch_idx
