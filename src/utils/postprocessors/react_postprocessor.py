@@ -50,15 +50,9 @@ class ReactPostprocessor(BasePostprocessor):
     
     def forward_threshold(self, data: Any, net):
         net.eval()
-        if hasattr(net, 'fc'):
-            feature = net(data).get("avgpool")
-            feature = feature.clip(max=self.threshold)
-            feature = feature.view(feature.size(0), -1)
-            logits_cls = net.fc(feature)
-        elif hasattr(net, 'classsifier'):
-            feature = net(data).get("features")
-            feature = feature.clip(max=self.threshold)
-            feature = feature.view(feature.size(0), -1)
-            logits_cls = net.classifier(feature)
+        feature = getLastLayers(net, data)[0]
+        feature = feature.clip(max=self.threshold)
+        feature = feature.view(feature.size(0), -1)
+        logits_cls = net.fc(feature)
 
         return logits_cls

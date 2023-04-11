@@ -11,8 +11,15 @@ import torchvision.transforms as transforms
 from torchvision.models.feature_extraction import create_feature_extractor
 import torchvision
 from torchsummary import summary
+
+from utils.preprocessors.test_preprocessor import TestStandardPreProcessor
+from utils.preprocessors.utils import get_preprocessor
+
+from utils.networks.utils import get_network
 from .cutout import Cutout
 import pandas as pd
+from torch.utils.data import DataLoader
+import torchvision
 
 BATCH_SIZE = 256
 writer = SummaryWriter()
@@ -112,11 +119,11 @@ def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup 
         testset = tuple((testset[i][0], -1) if i < contamination_dict[dataset[0]] else testset[i] for i in range(len(testset)))
 
     if train:
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+        trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
         if valset is not None:
-            valloader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False)
+            valloader = DataLoader(valset, batch_size=batch_size, shuffle=False)
         if testset is not None:
-            testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+            testloader = DataLoader(testset, batch_size=batch_size, shuffle=False)
         return trainloader, valloader, testloader
     else:
         if setup:
@@ -126,7 +133,7 @@ def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup 
                 testset = torch.utils.data.ConcatDataset([valset, testset])
             else:
                 testset = valset
-        testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
+        testloader = DataLoader(testset, batch_size=batch_size, shuffle=False)
         return testloader
 
 def getDataset(dataset: str, transform = None, transform_val = None, target_transform = None):
@@ -314,18 +321,26 @@ def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints:
 
 def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str):
     path = f'./checkpoints/{checkpoint}'
-    ckpt = torch.load(path)
-    model = getNN(nn, dataset)
-    if both_layers:
-        if nn.startswith('resnet'):
-            # model = create_feature_extractor(model, ['conv1', 'bn1', 'relu', 'maxpool', 'layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc']) # maybe for mds
-            model = create_feature_extractor(model, ['avgpool', 'fc'])
-        elif nn.startswith('densenet'):
-            model = create_feature_extractor(model, ['features', 'classifier'])
-        else:
-            raise NotImplementedError("Not known.")
-
     use_gpu = isCuda()
+    if dataset in ['cifar10', 'mnist']:
+        model = get_network(num_classes=num_classes_dict[dataset], name=nn, use_gpu=use_gpu, checkpoint=path)
+        print("done")
+    else:
+        ckpt = torch.load(path)
+        model = getNN(nn, dataset)
+    if both_layers:
+        pass
+    #     if nn.startswith('resnet'):
+    #         # model = create_feature_extractor(model, ['conv1', 'bn1', 'relu', 'maxpool', 'layer1', 'layer2', 'layer3', 'layer4', 'avgpool', 'fc']) # maybe for mds
+    #         model = create_feature_extractor(model, ['avgpool', 'fc'])
+    #     elif nn.startswith('densenet'):
+    #         model = create_feature_extractor(model, ['features', 'classifier'])
+    #     else:
+    #         raise NotImplementedError("Not known.")
+    if dataset in ['cifar10', 'mnist']:
+        print('end')
+        return model
+
     if use_gpu:
         model = model.cuda()
     if dataset != 'tin':
@@ -375,11 +390,5 @@ def save_scores_(fetures, labels, save_name, save_dir):
                 labels=labels)
     
 def getLastLayers(model, data):
-    out = model(data)
-    if hasattr(model, 'fc'):
-        features, logits = out.get("avgpool"), out.get("fc")
-    elif hasattr(model, 'classifier'):
-        features, logits = out.get("fetures"), out.get("classifier")
-    else:
-        raise NotImplementedError("Not known.")
-    return features, logits
+    return model(data, return_feature=True)
+
