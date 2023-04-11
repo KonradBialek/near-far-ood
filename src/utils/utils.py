@@ -233,7 +233,6 @@ normalization_dict = {'cifar10': ([0.49139968, 0.48215841, 0.44653091], [0.24703
                       'fashionmnist': ([0.28604060411453247, 0.28604060411453247, 0.28604060411453247], [0.3530242443084717, 0.3530242443084717, 0.3530242443084717]),
                       'notmnist': ([0.4239663035214087, 0.4239663035214087, 0.4239663035214087], [0.4583350861943875, 0.4583350861943875, 0.4583350861943875]),
                       'dtd': ([0.52875836, 0.4730212, 0.4247069], [0.26853561, 0.25950334, 0.26667375]),
-                    #   'places365': NotImplementedError(f'Normalization and shape of images in places365 is not known.'),
                       'svhn': ([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]),
                       'tin': ([0.48023694, 0.44806704, 0.39750364], [0.27643643, 0.26886328, 0.28158993]),
 }
@@ -319,12 +318,10 @@ def saveModel(epoch: int, model, optimizer, scheduler, loss: float, checkpoints:
         'loss': loss,
         }, f'{checkpoints}/model-{nn}-epoch-{epoch}{"-last" if flag == 2 else ""}-CrossEntropyLoss-{loss:.8f}{"-early_stop" if flag == 1 else ""}.pth')
 
-def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str):
+def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str, use_gpu: bool):
     path = f'./checkpoints/{checkpoint}'
-    use_gpu = isCuda()
     if dataset in ['cifar10', 'mnist']:
         model = get_network(num_classes=num_classes_dict[dataset], name=nn, use_gpu=use_gpu, checkpoint=path)
-        print("done")
     else:
         ckpt = torch.load(path)
         model = getNN(nn, dataset)
@@ -338,7 +335,6 @@ def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str):
     #     else:
     #         raise NotImplementedError("Not known.")
     if dataset in ['cifar10', 'mnist']:
-        print('end')
         return model
 
     if use_gpu:
@@ -392,3 +388,74 @@ def save_scores_(fetures, labels, save_name, save_dir):
 def getLastLayers(model, data):
     return model(data, return_feature=True)
 
+def get_dataloader(dataset_config, preprocessor_args):
+    # prepare a dataloader dictionary
+    dataloader_dict = {}
+    for split in dataset_config['split_names']:
+        preprocessor = get_preprocessor(preprocessor_args, split)
+        # weak augmentation for data_aux
+        data_aux_preprocessor = TestStandardPreProcessor(preprocessor_args)
+        train = True if split == 'train' else False
+        transform = preprocessor if split == 'train' else data_aux_preprocessor
+        if dataset_config['name'] == 'cifar10':
+            dataset = torchvision.datasets.CIFAR10(root=dataset_config['data_dir'], train=train, download=True, transform=transform)
+
+        elif dataset_config['name'] == 'mnist':
+            dataset = torchvision.datasets.MNIST(root=dataset_config['data_dir'], train=train, download=True, transform=transform)
+        else:
+            raise NotImplementedError
+        
+        sampler = None
+
+        dataloader = DataLoader(dataset,
+                                batch_size=BATCH_SIZE,
+                                shuffle=True if split == 'train' else False,
+                                num_workers=4,
+                                sampler=sampler)
+
+        dataloader_dict[split] = dataloader
+    return dataloader_dict
+
+
+def get_ood_dataloader(ood_config, preprocessor_args):
+    dataloader_dict = {}
+    for split in ood_config['split_names']:
+        preprocessor = get_preprocessor(preprocessor_args, split)
+        data_aux_preprocessor = TestStandardPreProcessor(preprocessor_args)
+        if split == 'val':
+            # validation set
+            train = True if split == 'train' else False
+            transform = preprocessor if split == 'train' else data_aux_preprocessor
+            if ood_config['name'] == 'cifar10_ood':
+                dataset = torchvision.datasets.CIFAR10(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+
+            elif ood_config['name'] == 'mnist_ood':
+                dataset = torchvision.datasets.MNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+            else:
+                raise NotImplementedError
+            dataloader = DataLoader(dataset,
+                                    batch_size=BATCH_SIZE,
+                                    shuffle=True if split == 'train' else False,
+                                    num_workers=4)
+            dataloader_dict[split] = dataloader
+        else:
+            # dataloaders for csid, nearood, farood
+            sub_dataloader_dict = {}
+            for dataset_name in ood_config[split]:
+                train = True if split == 'train' else False
+                transform = preprocessor if split == 'train' else data_aux_preprocessor
+                if ood_config['name'] == 'cifar10_ood':
+                    dataset = torchvision.datasets.CIFAR10(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+
+                elif ood_config['name'] == 'mnist_ood':
+                    dataset = torchvision.datasets.MNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+                else:
+                    raise NotImplementedError
+                dataloader = DataLoader(dataset,
+                                        batch_size=BATCH_SIZE,
+                                        shuffle=True if split == 'train' else False,
+                                        num_workers=4)
+                sub_dataloader_dict[dataset_name] = dataloader
+            dataloader_dict[split] = sub_dataloader_dict
+
+    return dataloader_dict

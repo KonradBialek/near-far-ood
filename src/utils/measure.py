@@ -5,7 +5,7 @@ import numpy as np
 
 from utils.evaluators.utils import get_evaluator
 from utils.postprocessors.utils import get_postprocessor
-from .utils import dataloader, getLastLayers, getNormalization, getShape, bothLayers, loadNNWeights, save_scores_
+from .utils import dataloader, get_dataloader, get_ood_dataloader, getLastLayers, getNormalization, getShape, bothLayers, isCuda, loadNNWeights, save_scores_, num_classes_dict, shape_dict, normalization_dict
 import faiss
 from torch.utils.data import DataLoader
 
@@ -158,34 +158,39 @@ def measure(method: str, method_args: list):
 
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
-    model = loadNNWeights(nn, checkpoint, both_layers=bothLayers(method=method), dataset=datasets[0])
-    evaluator = get_evaluator(eval='ood', eval_args=[])
+    use_gpu = isCuda()
+    method_args.append(use_gpu)
+    model = loadNNWeights(nn, checkpoint, both_layers=bothLayers(method=method), dataset=datasets[0], use_gpu=use_gpu)
+    evaluator = get_evaluator(eval='ood', eval_args=[use_gpu])
     postprocessor = get_postprocessor(method=method, method_args=method_args)
-    shape = getShape(datasets[0])
-    normalization = getNormalization(datasets[0])
 
-    trainloader = dataloader(datasets[0], size=shape[:2], train=False, setup=True, normalization=normalization, postprocess=True)
-    postprocessor.setup(net=model, trainloader=trainloader)
+    # trainloader = dataloader(datasets[0], size=shape[:2], train=False, setup=True, normalization=normalization, postprocess=True)
+    dataloader_args = {'split_names':  ['train', 'val', 'test'], 'name': datasets[0], 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/data/'}
+    preprocessor_args = {'name': 'base', 'image_size': getShape(datasets[0])[0], 'interpolation': 'bilinear', 'normalization_type': datasets[0]}
+    id_loader = get_dataloader(dataloader_args, preprocessor_args)
+    dataloader_args = {'split_names':  ['val', 'nearood', 'farood'], 'nearood': ['cifar100', 'tin'], 'farood': ['mnist', 'svhn', 'texture', 'place365'], 'name': f'{datasets[0]}_ood', 'num_classes': num_classes_dict[datasets[0]], 'data_dir':  './data/data/'}
+    ood_loader = get_ood_dataloader(dataloader_args, preprocessor_args)
+    postprocessor.setup(net=model, trainloader=id_loader)
 
-    idLoader, oodLoaders = {}, {}
-    for dataset in datasets:
-        testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
-        if dataset == datasets[0]:
-            idLoader[dataset] = testloader
-        else:
-            oodLoaders[dataset] = testloader
+    # idLoader, oodLoaders = {}, {}
+    # for dataset in datasets:
+    #     testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
+    #     if dataset == datasets[0]:
+    #         idLoader[dataset] = testloader
+    #     else:
+    #         oodLoaders[dataset] = testloader
 
-    # start calculating accuracy
-    print('\nStart evaluation...', flush=True)
-    acc_metrics = evaluator.eval_acc(model, idLoader[datasets[0]],
-                                    postprocessor)
-    print('\nAccuracy {:.2f}%'.format(100 * acc_metrics['acc']),
-            flush=True)
-    print(u'\u2500' * 70, flush=True)
+    # # start calculating accuracy
+    # print('\nStart evaluation...', flush=True)
+    # acc_metrics = evaluator.eval_acc(model, idLoader[datasets[0]],
+    #                                 postprocessor)
+    # print('\nAccuracy {:.2f}%'.format(100 * acc_metrics['acc']),
+    #         flush=True)
+    # print(u'\u2500' * 70, flush=True)
 
-    # start evaluating ood detection methods
-    evaluator.eval_ood(model, idLoader, oodLoaders, postprocessor)
-    print('Completed!', flush=True)
+    # # start evaluating ood detection methods
+    # evaluator.eval_ood(model, idLoader, oodLoaders, postprocessor)
+    # print('Completed!', flush=True)
 
     # testloader = dataloader(datasets, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
     # print('\nOOD...', flush=True)

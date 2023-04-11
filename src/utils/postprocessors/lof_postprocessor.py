@@ -18,11 +18,11 @@ class LocalOutlierFactorPostprocessor(BasePostprocessor):
         activation_log = []
         net.eval()
         with torch.no_grad():
-            for batch in tqdm(trainloader,
+            for batch in tqdm(trainloader['train'],
                               desc='Eval: ',
                               position=0,
                               leave=True):
-                data = batch[0].cuda()
+                data = batch[0].to(device=self.device)
                 data = data.float()
 
                 batch_size = data.shape[0]

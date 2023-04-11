@@ -17,7 +17,7 @@ def to_np(x):
 
 class BaseEvaluator:
     def __init__(self, eval_args):
-        pass
+        self.device = 'cuda' if eval_args[-1] else 'cpu'
 
     def eval_acc(self,
                  net: nn.Module,
@@ -34,8 +34,8 @@ class BaseEvaluator:
                               position=0,
                               leave=True):
                 # prepare data
-                data = batch[0].cuda()
-                target = batch[1].cuda()
+                data = batch[0].to(device=self.device)
+                target = batch[1].to(device=self.device)
 
                 # forward
                 try: 
@@ -69,7 +69,7 @@ class BaseEvaluator:
                               desc='Feature Extracting: ',
                               position=0,
                               leave=True):
-                data = batch[0].cuda()
+                data = batch[0].device(self.device)
                 label = batch[1]
 
                 feat = getLastLayers(net, data)[0]

@@ -8,7 +8,7 @@ from utils.utils import getLastLayers
 
 class BasePostprocessor:
     def __init__(self, method_args):
-        pass
+        self.device = 'cuda' if method_args[-1] else 'cpu'
 
     def setup(self, net: nn.Module, trainloader):
         pass
@@ -38,8 +38,8 @@ class BasePostprocessor:
     def inference(self, net: nn.Module, data_loader: DataLoader):
         pred_list, conf_list, label_list = [], [], []
         for batch in data_loader:
-            data = batch[0].cuda()
-            label = batch[1].cuda()
+            data = batch[0].to(device=self.device)
+            label = batch[1].to(device=self.device)
             conf, pred = self.postprocess(net, data)
             for idx in range(len(data)):
                 pred_list.append(pred[idx].cpu().tolist())

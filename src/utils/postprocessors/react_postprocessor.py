@@ -23,7 +23,7 @@ class ReactPostprocessor(BasePostprocessor):
                               desc='Eval: ',
                               position=0,
                               leave=True):
-                data = batch[0].cuda()
+                data = batch[0].to(device=self.device)
                 data = data.float()
 
                 batch_size = data.shape[0]
