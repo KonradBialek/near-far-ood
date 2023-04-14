@@ -38,7 +38,7 @@ class OODEvaluator(BaseEvaluator):
         dataset_name = list(id_data_loader.keys())[0]
         print(f'Performing inference on {dataset_name} dataset...', flush=True)
         id_pred, id_conf, id_gt = postprocessor.inference(
-            net, id_data_loader[dataset_name])
+            net, id_data_loader['test'])
         self._save_scores(id_pred, id_conf, id_gt, dataset_name)
 
         # if self.config.postprocessor.APS_mode:
@@ -48,24 +48,24 @@ class OODEvaluator(BaseEvaluator):
         # load nearood data and compute ood metrics
         self._eval_ood(net, [id_pred, id_conf, id_gt],
                        ood_data_loaders,
-                       postprocessor,)
-        #                ood_split='nearood')
-        # # load farood data and compute ood metrics
-        # self._eval_ood(net, [id_pred, id_conf, id_gt],
-        #                ood_data_loaders,
-        #                postprocessor,
-        #                ood_split='farood')
+                       postprocessor,
+                       ood_split='nearood')
+        # load farood data and compute ood metrics
+        self._eval_ood(net, [id_pred, id_conf, id_gt],
+                       ood_data_loaders,
+                       postprocessor,
+                       ood_split='farood')
 
     def _eval_ood(self,
                   net: nn.Module,
                   id_list: List[np.ndarray],
                   ood_data_loaders: Dict[str, DataLoader],
-                  postprocessor: BasePostprocessor,):
-                #   ood_split: str = 'nearood'):
+                  postprocessor: BasePostprocessor,
+                  ood_split: str = 'nearood'):
         print(f'Processing ood...', flush=True)
         [id_pred, id_conf, id_gt] = id_list
         metrics_list = []
-        for dataset_name, ood_dl in ood_data_loaders.items():
+        for dataset_name, ood_dl in ood_data_loaders[ood_split].items():
             print(f'Performing inference on {dataset_name} dataset...',
                   flush=True)
             ood_pred, ood_conf, ood_gt = postprocessor.inference(net, ood_dl)

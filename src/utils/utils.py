@@ -54,7 +54,7 @@ def updateWriter(mode: str, loss: float, acc: float, epoch: int):
     writer.add_scalar(f"loss/{mode}", loss, epoch)
     writer.add_scalar(f"acc/{mode}", acc, epoch)
 
-def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, postprocess = False):
+def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup = False, n_holes = 1, length = 16, normalization = [[0.5], [0.5]], batch_size = BATCH_SIZE, postprocess = False, interpolation = 'bilinear'):
     '''
     Load dataset.
 
@@ -75,26 +75,26 @@ def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup 
     if train:
         transform = transforms.Compose([
             Convert('RGB'),
-            transforms.Resize(size, transforms.InterpolationMode.BICUBIC), # for irregular datasets
+            transforms.Resize(size, interpolation=interpolation_modes[interpolation]), # for irregular datasets
+            transforms.CenterCrop(size),
+            transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size[0], padding=4),
-            transforms.RandomHorizontalFlip(),  
             transforms.ToTensor(),
             transforms.Normalize(normalization[0], normalization[1]),
-            Cutout(n_holes=n_holes, length=length),
+            # Cutout(n_holes=n_holes, length=length),
         ])
         transform_val = transforms.Compose([
             Convert('RGB'),
-            transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
+            transforms.Resize(size, interpolation=interpolation_modes[interpolation]),
+            transforms.CenterCrop(size),
             transforms.ToTensor(),
             transforms.Normalize(normalization[0], normalization[1]),
         ])
     elif postprocess:
         transform = transform_val = transforms.Compose([
             Convert('RGB'),
-            transforms.Resize(size, transforms.InterpolationMode.BICUBIC),
-            # transforms.CenterCrop(size),
-            # transforms.RandomHorizontalFlip(),
-            # transforms.RandomCrop(size, padding=4),
+            transforms.Resize(size, interpolation=interpolation_modes[interpolation]),
+            transforms.CenterCrop(size),
             transforms.ToTensor(),
             transforms.Normalize(normalization[0], normalization[1]),
         ])
@@ -190,7 +190,7 @@ def getDataset(dataset: str, transform = None, transform_val = None, target_tran
 
     return trainset, valset, testset, extraset
 
-def processValTIN(dataset_path: str, transform_val, target_transform):
+def processValTIN(dataset_path: str, transform_val, target_transform=None):
     if len(os.listdir(dataset_path + 'val')) != 200:
         df = pd.read_csv(dataset_path + 'val/val_annotations.txt', delimiter='\t')
         for dir_ in next(os.walk(dataset_path + 'train'))[1]:
@@ -227,14 +227,23 @@ def showLayers(model, shape):
         summary(model, (shape[2], shape[0], shape[1]))    
 
 
-normalization_dict = {'cifar10': ([0.49139968, 0.48215841, 0.44653091], [0.24703223, 0.24348513, 0.26158784]),
-                      'cifar100': ([0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]),
-                      'mnist': ([0.13062754273414612, 0.13062754273414612, 0.13062754273414612], [0.30810779333114624, 0.30810779333114624, 0.30810779333114624]),
-                      'fashionmnist': ([0.28604060411453247, 0.28604060411453247, 0.28604060411453247], [0.3530242443084717, 0.3530242443084717, 0.3530242443084717]),
-                      'notmnist': ([0.4239663035214087, 0.4239663035214087, 0.4239663035214087], [0.4583350861943875, 0.4583350861943875, 0.4583350861943875]),
-                      'dtd': ([0.52875836, 0.4730212, 0.4247069], [0.26853561, 0.25950334, 0.26667375]),
-                      'svhn': ([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]),
-                      'tin': ([0.48023694, 0.44806704, 0.39750364], [0.27643643, 0.26886328, 0.28158993]),
+normalization_dict = {
+    'cifar10': ([0.49139968, 0.48215841, 0.44653091], [0.24703223, 0.24348513, 0.26158784]),
+    'cifar100': ([0.48042983, 0.44819681, 0.39755555], [0.2764398, 0.26888656, 0.28166855]),
+    'imagenet': [[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]],
+    'covid': [[0.4907, 0.4907, 0.4907], [0.2697, 0.2697, 0.2697]],
+    'mnist': ([0.13062754273414612, 0.13062754273414612, 0.13062754273414612], [0.30810779333114624, 0.30810779333114624, 0.30810779333114624]),
+    'fashionmnist': ([0.28604060411453247, 0.28604060411453247, 0.28604060411453247], [0.3530242443084717, 0.3530242443084717, 0.3530242443084717]),
+    'notmnist': ([0.4239663035214087, 0.4239663035214087, 0.4239663035214087], [0.4583350861943875, 0.4583350861943875, 0.4583350861943875]),
+    'dtd': ([0.52875836, 0.4730212, 0.4247069], [0.26853561, 0.25950334, 0.26667375]),
+    'svhn': ([0.4376821, 0.4437697, 0.47280442], [0.19803012, 0.20101562, 0.19703614]),
+    'tin': ([0.48023694, 0.44806704, 0.39750364], [0.27643643, 0.26886328, 0.28158993]),
+}
+
+interpolation_modes = {
+    'nearest': transforms.InterpolationMode.NEAREST,
+    'bilinear': transforms.InterpolationMode.BILINEAR,
+    'bicubic': transforms.InterpolationMode.BICUBIC,
 }
 
 shape_dict = {'cifar10': (32, 32, 3),
@@ -444,13 +453,36 @@ def get_ood_dataloader(ood_config, preprocessor_args):
             for dataset_name in ood_config[split]:
                 train = True if split == 'train' else False
                 transform = preprocessor if split == 'train' else data_aux_preprocessor
-                if ood_config['name'] == 'cifar10_ood':
-                    dataset = torchvision.datasets.CIFAR10(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+                if dataset_name == 'svhn' and split in ['val', 'nearood', 'farood']:
+                    split_ = 'test'
+                elif dataset_name in ['place365', 'notmnist', 'tin'] and split in ['test', 'nearood', 'farood']:
+                    split_ = 'val'
 
-                elif ood_config['name'] == 'mnist_ood':
+                if dataset_name == 'cifar10':
+                    dataset = torchvision.datasets.CIFAR10(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+                elif dataset_name == 'cifar100':
+                    dataset = torchvision.datasets.CIFAR100(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+                elif dataset_name == 'texture':
+                    dataset = torchvision.datasets.DTD(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
+                elif dataset_name == 'fashionmnist':
+                    dataset = torchvision.datasets.FashionMNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+                elif dataset_name == 'mnist':
                     dataset = torchvision.datasets.MNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+                elif dataset_name == 'place365':
+                    dataset = torchvision.datasets.Places365(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
+                elif dataset_name == 'svhn':
+                    dataset = torchvision.datasets.SVHN(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
                 else:
-                    raise NotImplementedError
+                    dataset_path = f'./data/images_classic/{dataset_name}/'
+                    if dataset_name == 'notmnist':
+                        dataset = torchvision.datasets.ImageFolder(dataset_path + split_, transform=transform)
+                    elif dataset_name == 'tin':
+                        dataset = processValTIN(dataset_path=dataset_path, transform_val=transform) # if tiny imagenet val in raw form
+                    else:
+                        try:
+                            testset = torchvision.datasets.ImageFolder(dataset_path + split_, transform=transform)
+                        except:
+                            warn('No test set.')
                 dataloader = DataLoader(dataset,
                                         batch_size=BATCH_SIZE,
                                         shuffle=True if split == 'train' else False,
