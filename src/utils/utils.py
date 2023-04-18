@@ -34,8 +34,7 @@ class Convert:
     
 
 ultimate_layer_methods = ['msp', 'mls', 'odin']
-penultimate_layer_methods = ['knn', 'react', 'lof']
-# undefined = ['lof', 'mahalanobis']
+penultimate_layer_methods = ['knn', 'react', 'lof', 'mds']
 
 def bothLayers(method: str):
     if method in ultimate_layer_methods:

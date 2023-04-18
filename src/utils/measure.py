@@ -158,6 +158,8 @@ def measure(method: str, method_args: list):
 
 
 def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint = None):
+    if method == 'mds':
+        method_args.append(num_classes_dict[datasets[0]])
     use_gpu = isCuda()
     method_args.append(use_gpu)
     model = loadNNWeights(nn, checkpoint, both_layers=bothLayers(method=method), dataset=datasets[0], use_gpu=use_gpu)

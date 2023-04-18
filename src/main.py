@@ -9,7 +9,7 @@ from utils.measure import measure, measure_
 model_options = ['resnet18', 'densenet121']
 OOD_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
 train_options = ['cifar10', 'cifar100', 'svhn', 'tin', 'mnist', 'fashionmnist']
-method_options = ['knn', 'odin', 'msp', 'mls', 'react', 'lof', 'mahalanobis']
+method_options = ['knn', 'odin', 'msp', 'mls', 'react', 'lof', 'mds']
 mode_options = ['train', 'extract', 'measure']
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -44,13 +44,14 @@ normalization_dataset = ['cifar10', 'cifar100', 'dtd', 'svhn', 'tin', 'mnist', '
 MSP: -
 MLS: -
 ReAct: percentile
-LOF: n_neighbors (comment: contamination argument is calculated automaticly based on concatenated datasets)
-Machalanobis: ? # todo args
+LOF: n_neighbors
+MDS: magnitude feature_type_list alpha_list reduce_dim_list
 examples:
 KNN: 50
 ODIN: 1000 1.4e-3 true cifar10
 ReAct: 90
 LOF: 20
+MDS: 1.4e-3 mean 1 none
 ''')
 parser.set_defaults(argument=True)
 
