@@ -20,6 +20,7 @@ from .cutout import Cutout
 import pandas as pd
 from torch.utils.data import DataLoader
 import torchvision
+from torch.utils.data import Subset
 
 BATCH_SIZE = 256
 writer = SummaryWriter()
@@ -116,7 +117,7 @@ def dataloader(dataset: str or List[str], size = (32, 32), train = False, setup 
                 testset = valset
             testset_.append(testset)
         testset = torch.utils.data.ConcatDataset(testset_) # it changes -1 to 1 for ID part of dataset
-        testset = tuple((testset[i][0], -1) if i < contamination_dict[dataset[0]] else testset[i] for i in range(len(testset)))
+        testset = tuple((testset[i][0], -1) if i < length_dict[dataset[0]] else testset[i] for i in range(len(testset)))
 
     if train:
         trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
@@ -274,9 +275,9 @@ num_classes_dict = {'cifar10': 10,
                     'tin': 1000,
 }
 
-contamination_dict = {'cifar10': 10000,
+length_dict = {'cifar10': 10000,
                     'cifar100': 10000,
-                    'svhn': 13700,
+                    'svhn': 26032,
                     'mnist': 10000,
                     'fashionmnist': 10000,
                     'notmnist': 9362,
@@ -428,66 +429,92 @@ def get_dataloader(dataset_config, preprocessor_args):
 
 def get_ood_dataloader(ood_config, preprocessor_args):
     dataloader_dict = {}
-    for split in ood_config['split_names']:
-        preprocessor = get_preprocessor(preprocessor_args, split)
-        data_aux_preprocessor = TestStandardPreProcessor(preprocessor_args)
-        if split == 'val':
-            # validation set
-            train = True if split == 'train' else False
-            transform = preprocessor if split == 'train' else data_aux_preprocessor
-            if ood_config['name'] == 'cifar10_ood':
-                dataset = torchvision.datasets.CIFAR10(root=ood_config['data_dir'], train=train, download=True, transform=transform)
-
-            elif ood_config['name'] == 'mnist_ood':
-                dataset = torchvision.datasets.MNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
-            else:
-                raise NotImplementedError
-            dataloader = DataLoader(dataset,
-                                    batch_size=BATCH_SIZE,
-                                    shuffle=True if split == 'train' else False,
-                                    num_workers=4)
-            dataloader_dict[split] = dataloader
-        else:
-            # dataloaders for csid, nearood, farood
-            sub_dataloader_dict = {}
-            for dataset_name in ood_config[split]:
-                train = True if split == 'train' else False
+    if 'val' in ood_config['split_names']:
+        for split in ood_config['split_names']:
+            preprocessor = get_preprocessor(preprocessor_args, split)
+            data_aux_preprocessor = TestStandardPreProcessor(preprocessor_args)
+            if split == 'val':
+                # validation set
                 transform = preprocessor if split == 'train' else data_aux_preprocessor
-                if dataset_name == 'svhn' and split in ['val', 'nearood', 'farood']:
-                    split_ = 'test'
-                elif dataset_name in ['place365', 'notmnist', 'tin'] and split in ['test', 'nearood', 'farood']:
-                    split_ = 'val'
+                dataset = getDataset_(dataset_name=ood_config['name'], split=split, ood_config=ood_config, transform=transform)
 
-                if dataset_name == 'cifar10':
-                    dataset = torchvision.datasets.CIFAR10(root=ood_config['data_dir'], train=train, download=True, transform=transform)
-                elif dataset_name == 'cifar100':
-                    dataset = torchvision.datasets.CIFAR100(root=ood_config['data_dir'], train=train, download=True, transform=transform)
-                elif dataset_name == 'texture':
-                    dataset = torchvision.datasets.DTD(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
-                elif dataset_name == 'fashionmnist':
-                    dataset = torchvision.datasets.FashionMNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
-                elif dataset_name == 'mnist':
-                    dataset = torchvision.datasets.MNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
-                elif dataset_name == 'place365':
-                    dataset = torchvision.datasets.Places365(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
-                elif dataset_name == 'svhn':
-                    dataset = torchvision.datasets.SVHN(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
-                else:
-                    dataset_path = f'./data/images_classic/{dataset_name}/'
-                    if dataset_name == 'notmnist':
-                        dataset = torchvision.datasets.ImageFolder(dataset_path + split_, transform=transform)
-                    elif dataset_name == 'tin':
-                        dataset = processValTIN(dataset_path=dataset_path, transform_val=transform) # if tiny imagenet val in raw form
-                    else:
-                        try:
-                            testset = torchvision.datasets.ImageFolder(dataset_path + split_, transform=transform)
-                        except:
-                            warn('No test set.')
                 dataloader = DataLoader(dataset,
                                         batch_size=BATCH_SIZE,
                                         shuffle=True if split == 'train' else False,
                                         num_workers=4)
-                sub_dataloader_dict[dataset_name] = dataloader
-            dataloader_dict[split] = sub_dataloader_dict
+                dataloader_dict[split] = dataloader
+            else:
+                # dataloaders for csid, nearood, farood
+                sub_dataloader_dict = {}
+                for dataset_name in ood_config[split]:
+                    transform = preprocessor if split == 'train' else data_aux_preprocessor
+                    dataset = getDataset_(dataset_name=dataset_name, split=split, ood_config=ood_config, transform=transform)
+                    dataloader = DataLoader(dataset,
+                                            batch_size=BATCH_SIZE,
+                                            shuffle=True if split == 'train' else False,
+                                            num_workers=4)
+                    sub_dataloader_dict[dataset_name] = dataloader
+                dataloader_dict[split] = sub_dataloader_dict
+    else:
+        transform = TestStandardPreProcessor(preprocessor_args)
+        dataloader_dict = {}
+        for j in range(1, len(ood_config['split_names'])):
+            sets = [ood_config['split_names'][0], ood_config['split_names'][j]]
+            testset_, len_ = [], []
+            for dataset in sets:
+                testset = getDataset_(dataset_name=dataset, split='val', ood_config=ood_config, transform=transform, target_transform=transforms.Lambda(lambda x: torch.Tensor(x)))
+                testset_.append(testset)
+                len_.append(len(testset))
+            len_ = min(len_)
+            for i in range(len(testset_)):
+                testset_[i] = Subset(testset_[i], list(range(len_)))
+            testset = torch.utils.data.ConcatDataset(testset_) # it changes -1 to 1 for ID part of datase
+            testset = tuple((testset[i][0], -1) if i >= len_ else testset[i] for i in range(len(testset)))
+            testloader = DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False)
+            dataloader_dict['-'.join(sets)] = testloader
 
     return dataloader_dict
+
+def getDataset_(dataset_name, split, ood_config, transform, target_transform=None): 
+    train = True if split == 'train' else False
+    split_ = None
+    if dataset_name in ['svhn', 'dtd'] and split in ['val', 'nearood', 'farood']:
+        split_ = 'test'
+    elif dataset_name in ['places365', 'notmnist', 'tin', 'texture'] and split in ['test', 'nearood', 'farood']:
+        split_ = 'val'
+
+    if dataset_name == 'cifar10':
+        dataset = torchvision.datasets.CIFAR10(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+    elif dataset_name == 'cifar100':
+        dataset = torchvision.datasets.CIFAR100(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+    elif dataset_name == 'dtd':
+        dataset = torchvision.datasets.DTD(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
+        if 'val' not in ood_config['split_names']:
+            trainset = torchvision.datasets.DTD(root=ood_config['data_dir'], split='train', download=True, transform=transform)
+            testset = torchvision.datasets.DTD(root=ood_config['data_dir'], split='test', download=True, transform=transform)
+            dataset = torch.utils.data.ConcatDataset([trainset, testset, dataset])
+    elif dataset_name == 'fashionmnist':
+        dataset = torchvision.datasets.FashionMNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+    elif dataset_name == 'mnist':
+        dataset = torchvision.datasets.MNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
+    elif dataset_name == 'places365':
+        dataset = torchvision.datasets.Places365(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
+    elif dataset_name == 'svhn':
+        dataset = torchvision.datasets.SVHN(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
+    else:
+        dataset_path = f'./data/images_classic/{dataset_name}/'
+        split_ = 'val'
+        if dataset_name == 'notmnist':
+            dataset = torchvision.datasets.ImageFolder(dataset_path + split_, transform=transform)
+            if 'val' not in ood_config['split_names']:
+                trainset = torchvision.datasets.ImageFolder(dataset_path + 'train', transform=transform)
+                dataset = torch.utils.data.ConcatDataset([trainset, dataset])
+                dataset = torch.utils.data.Subset(dataset, range(len(dataset) - 10000, len(dataset)))
+        elif dataset_name == 'tin':
+            dataset = processValTIN(dataset_path=dataset_path, transform_val=transform) # if tiny imagenet val in raw form
+        else:
+            try:
+                dataset = torchvision.datasets.ImageFolder(dataset_path + split_, transform=transform)
+            except:
+                warn('No test set.')
+    return dataset

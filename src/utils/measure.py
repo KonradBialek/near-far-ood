@@ -168,17 +168,13 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
     dataloader_args = {'split_names':  ['train', 'val', 'test'], 'name': datasets[0], 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/images_classic'}
     preprocessor_args = {'name': 'base', 'image_size': getShape(datasets[0])[0], 'interpolation': 'bilinear', 'normalization_type': datasets[0]}
     id_loader = get_dataloader(dataloader_args, preprocessor_args)
-    dataloader_args = {'split_names':  ['val', 'nearood', 'farood'], 'nearood': ['cifar100', 'tin'], 'farood': ['mnist', 'svhn', 'texture'], 'name': f'{datasets[0]}_ood', 'num_classes': num_classes_dict[datasets[0]], 'data_dir':  './data/images_classic'}
+    if datasets[0] == 'cifar10':
+        nearood, farood = ['cifar100', 'tin'], ['mnist', 'fashionmnist', 'notmnist', 'svhn', 'dtd']
+    if datasets[0] == 'mnist':
+        nearood, farood = ['fashionmnist', 'notmnist'], ['cifar10', 'cifar100', 'svhn', 'tin', 'dtd', 'places365']
+    dataloader_args = {'split_names':  ['val', 'nearood', 'farood'], 'nearood': nearood, 'farood': farood, 'name': f'{datasets[0]}', 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/images_classic'}
     ood_loader = get_ood_dataloader(dataloader_args, preprocessor_args)
     postprocessor.setup(net=model, trainloader=id_loader)
-
-    # idLoader, oodLoaders = {}, {}
-    # for dataset in datasets:
-    #     testloader = dataloader(dataset, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
-    #     if dataset == datasets[0]:
-    #         idLoader[dataset] = testloader
-    #     else:
-    #         oodLoaders[dataset] = testloader
 
     # start calculating accuracy
     print('\nStart evaluation...', flush=True)
@@ -192,10 +188,9 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
     evaluator.eval_ood(model, id_loader, ood_loader, postprocessor)
     print('Completed!', flush=True)
 
-    # testloader = dataloader(datasets, size=shape[:2], train=False, setup=False, normalization=normalization, postprocess=True)
-    # print('\nOOD...', flush=True)
-    # acc_metrics = evaluator.eval_acc(model, testloader,
-    #                                 postprocessor)
-    # print('\nAccuracy {:.2f}%'.format(100 * acc_metrics['acc']),
-    #         flush=True)
-    # print(u'\u2500' * 70, flush=True)
+    dataloader_args = {'split_names': datasets, 'name': datasets[0], 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/images_classic'}
+    ood_loader = get_ood_dataloader(dataloader_args, preprocessor_args)
+
+    print('\nOOD...', flush=True)
+    acc_metrics = evaluator.eval_ood_(model, ood_loader,
+                                    postprocessor)

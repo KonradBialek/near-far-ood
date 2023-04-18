@@ -62,7 +62,7 @@ class OODEvaluator(BaseEvaluator):
                   ood_data_loaders: Dict[str, DataLoader],
                   postprocessor: BasePostprocessor,
                   ood_split: str = 'nearood'):
-        print(f'Processing ood...', flush=True)
+        print(f'Processing {ood_split}...', flush=True)
         [id_pred, id_conf, id_gt] = id_list
         metrics_list = []
         for dataset_name, ood_dl in ood_data_loaders[ood_split].items():
@@ -79,6 +79,31 @@ class OODEvaluator(BaseEvaluator):
             print(f'Computing metrics on {dataset_name} dataset...')
 
             ood_metrics = compute_all_metrics(conf, label, pred)
+            self._save_csv(ood_metrics, dataset_name=dataset_name)
+            metrics_list.append(ood_metrics)
+
+        print('Computing mean metrics...', flush=True)
+        metrics_list = np.array(metrics_list)
+        metrics_mean = np.mean(metrics_list, axis=0)
+        self._save_csv(metrics_mean, dataset_name=ood_split)
+
+    def eval_ood_(self, net: nn.Module, data_loader: Dict[str, DataLoader],
+                 postprocessor: BasePostprocessor):
+        metrics_list = []
+        if type(net) is dict:
+            for subnet in net.values():
+                subnet.eval()
+        else:
+            net.eval()
+        for dataset_name, dataloader in data_loader.items():
+            print(f'Performing inference on {dataset_name} dataset...',
+                    flush=True)
+            ood_pred, ood_conf, ood_gt = postprocessor.inference(net, dataloader)
+            self._save_scores(ood_pred, ood_conf, ood_gt, dataset_name)
+
+            print(f'Computing metrics on {dataset_name} dataset...')
+
+            ood_metrics = compute_all_metrics(ood_conf, ood_gt, ood_pred)
             self._save_csv(ood_metrics, dataset_name=dataset_name)
             metrics_list.append(ood_metrics)
 
