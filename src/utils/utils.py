@@ -426,7 +426,7 @@ def get_dataloader(dataset_config, preprocessor_args):
     return dataloader_dict
 
 
-def get_ood_dataloader(ood_config, preprocessor_args):
+def get_ood_dataloader(ood_config, preprocessor_args, lof=False):
     dataloader_dict = {}
     if 'val' in ood_config['split_names']:
         for split in ood_config['split_names']:
@@ -468,7 +468,10 @@ def get_ood_dataloader(ood_config, preprocessor_args):
             for i in range(len(testset_)):
                 testset_[i] = Subset(testset_[i], list(range(len_)))
             testset = torch.utils.data.ConcatDataset(testset_) # it changes -1 to 1 for ID part of datase
-            testset = tuple((testset[i][0], -1) if i >= len_ else testset[i] for i in range(len(testset)))
+            if lof:
+                testset = tuple((testset[i][0], -1) if i >= len_ else (testset[i][0], 1) for i in range(len(testset)))
+            else:
+                testset = tuple((testset[i][0], -1) if i >= len_ else testset[i] for i in range(len(testset)))
             testloader = DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False)
             dataloader_dict['-'.join(sets)] = testloader
 

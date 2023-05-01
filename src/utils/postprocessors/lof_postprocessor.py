@@ -8,6 +8,7 @@ from .base_postprocessor import BasePostprocessor
 
 from utils.utils import getLastLayers
 
+normalizer = lambda x: x / np.linalg.norm(x, axis=-1, keepdims=True) + 1e-10
 
 class LocalOutlierFactorPostprocessor(BasePostprocessor):
     def __init__(self, method_args):
@@ -30,19 +31,19 @@ class LocalOutlierFactorPostprocessor(BasePostprocessor):
                 feature = getLastLayers(net, data)[0]
 
                 dim = feature.shape[1]
-                activation_log.append(feature.data.cpu().numpy().reshape(
-                    batch_size, dim, -1).mean(2))
+                activation_log.append(
+                    normalizer(feature.data.cpu().numpy().reshape(
+                    batch_size, dim, -1).mean(2)))
 
-        activation_log = np.concatenate(activation_log, axis=0)
+        self.activation_log = np.concatenate(activation_log, axis=0)
         self.clf = LocalOutlierFactor(n_neighbors=self.n_neighbors, novelty=True, n_jobs=-1)
-
-        self.clf.fit(activation_log)
+        self.clf.fit(self.activation_log)
 
         
     @torch.no_grad()
     def postprocess(self, net: nn.Module, data):
         '''
-        Measure distance with MSP.
+        Measure distance with LOF.
 
         Args:
             data (np.ndarray or Tensor): Features to process.
@@ -50,8 +51,8 @@ class LocalOutlierFactorPostprocessor(BasePostprocessor):
         '''
         if not isinstance(data, np.ndarray):
             data = getLastLayers(net, data)[0]
-            data = data.data.cpu().numpy().reshape(
-                    data.shape[0], data.shape[1], -1).mean(2)
+            data = normalizer(data.data.cpu().numpy().reshape(
+                    data.shape[0], data.shape[1], -1).mean(2))
 
         pred = torch.Tensor(self.clf.predict(data))
         conf = torch.Tensor(self.clf.score_samples(data))

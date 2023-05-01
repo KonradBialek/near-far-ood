@@ -191,7 +191,7 @@ def measure_(nn: str, method: str, datasets: list, method_args: list, checkpoint
     print('Completed!', flush=True)
 
     dataloader_args = {'split_names': datasets, 'name': datasets[0], 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/images_classic'}
-    ood_loader = get_ood_dataloader(dataloader_args, preprocessor_args)
+    ood_loader = get_ood_dataloader(dataloader_args, preprocessor_args, lof=True if method == 'lof' else False)
 
     print('\nOOD...', flush=True)
     acc_metrics = evaluator.eval_ood_(model, ood_loader,
