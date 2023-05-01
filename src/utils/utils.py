@@ -500,9 +500,9 @@ def getDataset_(dataset_name, split, ood_config, transform, target_transform=Non
     elif dataset_name == 'mnist':
         dataset = torchvision.datasets.MNIST(root=ood_config['data_dir'], train=train, download=True, transform=transform)
     elif dataset_name == 'places365':
-        dataset = torchvision.datasets.Places365(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
+        dataset = torchvision.datasets.Places365(root=ood_config['data_dir']+'/places365', split=split_ if split_ else split, download=False, transform=transform, small=True)
     elif dataset_name == 'svhn':
-        dataset = torchvision.datasets.SVHN(root=ood_config['data_dir'], split=split_ if split_ else split, download=True, transform=transform)
+        dataset = torchvision.datasets.SVHN(root=ood_config['data_dir']+'/svhn', split=split_ if split_ else split, download=True, transform=transform)
     else:
         dataset_path = f'./data/images_classic/{dataset_name}/'
         split_ = 'val'
