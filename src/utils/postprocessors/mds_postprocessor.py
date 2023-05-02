@@ -20,8 +20,10 @@ class MDSPostprocessor(BasePostprocessor):
     def __init__(self, method_args):
         super().__init__(method_args)
         self.magnitude = float(method_args[0])
-        args = method_args[1:-2]
+        args = method_args[1:-3]
         self.feature_type_list, self.alpha_list, self.reduce_dim_list = [], [], []
+        global device 
+        device = self.device
 
         for elem in args:
             if elem in ['flat', 'mean', 'stat']:
@@ -33,6 +35,7 @@ class MDSPostprocessor(BasePostprocessor):
             else:
                 raise NotImplementedError("Wrong arg for mds init. Use: flat/mean/stat/none/capca/pca_50/lda/[integers].")
 
+        self.preprocessing = method_args[-3].lower() in ['true', '1', 't', 'y', 'yes']
         self.num_classes = int(method_args[-2])
         self.num_layer = len(self.feature_type_list)
 
@@ -54,7 +57,7 @@ class MDSPostprocessor(BasePostprocessor):
                     net, id_loader_dict['val'], self.num_classes,
                     self.feature_mean, self.feature_prec,
                     self.transform_matrix, layer_index, self.feature_type_list,
-                    self.magnitude)
+                    self.magnitude, preprocessing=self.preprocessing)
                 M_in = np.asarray(M_in, dtype=np.float32)
                 if layer_index == 0:
                     Mahalanobis_in = M_in.reshape((M_in.shape[0], -1))
@@ -68,7 +71,7 @@ class MDSPostprocessor(BasePostprocessor):
                     net, ood_loader_dict['val'], self.num_classes,
                     self.feature_mean, self.feature_prec,
                     self.transform_matrix, layer_index, self.feature_type_list,
-                    self.magnitude)
+                    self.magnitude, preprocessing=self.preprocessing)
                 M_out = np.asarray(M_out, dtype=np.float32)
                 if layer_index == 0:
                     Mahalanobis_out = M_out.reshape((M_out.shape[0], -1))
@@ -85,7 +88,7 @@ class MDSPostprocessor(BasePostprocessor):
     def postprocess(self, net: nn.Module, data: Any):
         for layer_index in range(self.num_layer):
 
-            pred, score = compute_Mahalanobis_score(net,
+            score, pred = compute_Mahalanobis_score(net,
                                                     Variable(
                                                         data,
                                                         requires_grad=True),
@@ -96,12 +99,16 @@ class MDSPostprocessor(BasePostprocessor):
                                                     layer_index,
                                                     self.feature_type_list,
                                                     self.magnitude,
-                                                    return_pred=True)
+                                                    return_pred=True,
+                                                    preprocessing=self.preprocessing)
             if layer_index == 0:
                 score_list = score.view([-1, 1])
             else:
                 score_list = torch.cat((score_list, score.view([-1, 1])), 1)
-        alpha = torch.cuda.FloatTensor(self.alpha_list)
+        if device == 'cuda':
+            alpha = torch.cuda.FloatTensor(self.alpha_list)
+        else:
+            alpha = torch.FloatTensor(self.alpha_list)
         conf = torch.matmul(score_list, alpha)
         return conf, pred
 
@@ -174,9 +181,9 @@ def get_MDS_stat(model, train_loader, num_classes, feature_type_list,
     label_list = []
     # collect features
     for batch in tqdm(train_loader['train'], desc='Compute mean/std'):
-        data = batch[0].cuda()
+        data = batch[0].to(device=device)
         label = batch[1]
-        _, feature_list = model(data, return_feature_list=True)
+        feature_list, _ = model(data, return_feature_list=True)
         label_list.extend(tensor2list(label))
         for layer_idx in range(num_layer):
             feature_type = feature_type_list[layer_idx]
@@ -193,7 +200,7 @@ def get_MDS_stat(model, train_loader, num_classes, feature_type_list,
         feature_sub = np.array(feature_all[layer_idx])
         transform_matrix = reduce_feature_dim(feature_sub, label_list,
                                               reduce_dim_list[layer_idx])
-        transform_matrix_list.append(torch.Tensor(transform_matrix).cuda())
+        transform_matrix_list.append(torch.Tensor(transform_matrix).to(device=device))
         feature_sub = np.dot(feature_sub, transform_matrix)
         for feature, label in zip(feature_sub, label_list):
             feature = feature.reshape([-1, len(feature)])
@@ -220,16 +227,16 @@ def get_MDS_stat(model, train_loader, num_classes, feature_type_list,
         precision = group_lasso.precision_
         precision_list.append(precision)
 
-    # put mean and precision to cuda
-    feature_mean_list = [torch.Tensor(i).cuda() for i in feature_mean_list]
-    precision_list = [torch.Tensor(p).cuda() for p in precision_list]
+    # put mean and precision to device
+    feature_mean_list = [torch.Tensor(i).to(device=device) for i in feature_mean_list]
+    precision_list = [torch.Tensor(p).to(device=device) for p in precision_list]
 
     return feature_mean_list, precision_list, transform_matrix_list
 
 
 def get_Mahalanobis_scores(model, test_loader, num_classes, sample_mean,
                            precision, transform_matrix, layer_index,
-                           feature_type_list, magnitude):
+                           feature_type_list, magnitude, preprocessing):
     '''
     Compute the proposed Mahalanobis confidence score on input dataset
     return: Mahalanobis score from layer_index
@@ -238,11 +245,11 @@ def get_Mahalanobis_scores(model, test_loader, num_classes, sample_mean,
     Mahalanobis = []
     for batch in tqdm(test_loader,
                       desc=f'{test_loader.dataset.name}_layer{layer_index}'):
-        data = batch['data'].cuda()
+        data = batch['data'].to(device=device)
         data = Variable(data, requires_grad=True)
         noise_gaussian_score = compute_Mahalanobis_score(
             model, data, num_classes, sample_mean, precision, transform_matrix,
-            layer_index, feature_type_list, magnitude)
+            layer_index, feature_type_list, magnitude, preprocessing)
         Mahalanobis.extend(noise_gaussian_score.cpu().numpy())
     return Mahalanobis
 
@@ -256,9 +263,10 @@ def compute_Mahalanobis_score(model,
                               layer_index,
                               feature_type_list,
                               magnitude,
-                              return_pred=False):
+                              return_pred=False,
+                              preprocessing=True):
     # extract features
-    _, out_features = model(data, return_feature_list=True)
+    out_features, _ = model(data, return_feature_list=True)
     out_features = process_feature_type(out_features[layer_index],
                                         feature_type_list[layer_index])
     out_features = torch.mm(out_features, transform_matrix[layer_index])
@@ -275,64 +283,66 @@ def compute_Mahalanobis_score(model,
         else:
             gaussian_score = torch.cat((gaussian_score, term_gau.view(-1, 1)),
                                        1)
+    gaussian_score, sample_pred = torch.max(gaussian_score, dim=1)
 
     # Input_processing
-    sample_pred = gaussian_score.max(1)[1]
-    batch_sample_mean = sample_mean[layer_index].index_select(0, sample_pred)
-    zero_f = out_features - Variable(batch_sample_mean)
-    pure_gau = -0.5 * torch.mm(
-        torch.mm(zero_f, Variable(precision[layer_index])), zero_f.t()).diag()
-    loss = torch.mean(-pure_gau)
-    loss.backward()
+    if preprocessing:
+        batch_sample_mean = sample_mean[layer_index].index_select(0, sample_pred)
+        zero_f = out_features - Variable(batch_sample_mean)
+        pure_gau = -0.5 * torch.mm(
+            torch.mm(zero_f, Variable(precision[layer_index])), zero_f.t()).diag()
+        loss = torch.mean(-pure_gau)
+        loss.backward()
 
-    gradient = torch.ge(data.grad.data, 0)
-    gradient = (gradient.float() - 0.5) * 2
+        gradient = torch.ge(data.grad.data, 0)
+        gradient = (gradient.float() - 0.5) * 2
 
-    # here we use the default value of 0.5
-    gradient.index_copy_(
-        1,
-        torch.LongTensor([0]).cuda(),
-        gradient.index_select(1,
-                              torch.LongTensor([0]).cuda()) / 0.5)
-    gradient.index_copy_(
-        1,
-        torch.LongTensor([1]).cuda(),
-        gradient.index_select(1,
-                              torch.LongTensor([1]).cuda()) / 0.5)
-    gradient.index_copy_(
-        1,
-        torch.LongTensor([2]).cuda(),
-        gradient.index_select(1,
-                              torch.LongTensor([2]).cuda()) / 0.5)
-    tempInputs = torch.add(
-        data.data, gradient,
-        alpha=-magnitude)  # updated input data with perturbation
+        # here we use the default value of 0.5
+        gradient.index_copy_(
+            1,
+            torch.LongTensor([0]).to(device=device),
+            gradient.index_select(1,
+                                torch.LongTensor([0]).to(device=device)) / 0.5)
+        gradient.index_copy_(
+            1,
+            torch.LongTensor([1]).to(device=device),
+            gradient.index_select(1,
+                                torch.LongTensor([1]).to(device=device)) / 0.5)
+        gradient.index_copy_(
+            1,
+            torch.LongTensor([2]).to(device=device),
+            gradient.index_select(1,
+                                torch.LongTensor([2]).to(device=device)) / 0.5)
+        tempInputs = torch.add(
+            data.data, gradient,
+            alpha=-magnitude)  # updated input data with perturbation
 
-    with torch.no_grad():
-        _, noise_out_features = model(Variable(tempInputs),
-                                      return_feature_list=True)
-        noise_out_features = process_feature_type(
-            noise_out_features[layer_index], feature_type_list[layer_index])
-        noise_out_features = torch.mm(noise_out_features,
-                                      transform_matrix[layer_index])
+        with torch.no_grad():
+            noise_out_features, _ = model(Variable(tempInputs),
+                                        return_feature_list=True)
+            noise_out_features = process_feature_type(
+                noise_out_features[layer_index], feature_type_list[layer_index])
+            noise_out_features = torch.mm(noise_out_features,
+                                        transform_matrix[layer_index])
 
-    noise_gaussian_score = 0
-    for i in range(num_classes):
-        batch_sample_mean = sample_mean[layer_index][i]
-        zero_f = noise_out_features.data - batch_sample_mean
-        term_gau = -0.5 * torch.mm(torch.mm(zero_f, precision[layer_index]),
-                                   zero_f.t()).diag()
-        if i == 0:
-            noise_gaussian_score = term_gau.view(-1, 1)
-        else:
-            noise_gaussian_score = torch.cat(
-                (noise_gaussian_score, term_gau.view(-1, 1)), 1)
+        noise_gaussian_score = 0
+        for i in range(num_classes):
+            batch_sample_mean = sample_mean[layer_index][i]
+            zero_f = noise_out_features.data - batch_sample_mean
+            term_gau = -0.5 * torch.mm(torch.mm(zero_f, precision[layer_index]),
+                                    zero_f.t()).diag()
+            if i == 0:
+                noise_gaussian_score = term_gau.view(-1, 1)
+            else:
+                noise_gaussian_score = torch.cat(
+                    (noise_gaussian_score, term_gau.view(-1, 1)), 1)
 
-    noise_gaussian_score, _ = torch.max(noise_gaussian_score, dim=1)
+        gaussian_score, _ = torch.max(noise_gaussian_score, dim=1)
+
     if return_pred:
-        return sample_pred, noise_gaussian_score
+        return gaussian_score, sample_pred
     else:
-        return noise_gaussian_score
+        return gaussian_score
 
 
 def alpha_selector(data_in, data_out):

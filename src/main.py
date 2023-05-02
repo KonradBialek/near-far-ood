@@ -45,13 +45,14 @@ MSP: -
 MLS: -
 ReAct: percentile
 LOF: n_neighbors
-MDS: magnitude feature_type_list alpha_list reduce_dim_list
+MDS: magnitude feature_type_list alpha_list reduce_dim_list preprocessing
+preprocessing = ['true', '1', 't', 'y', 'yes'] (from this list if True, other if False)
 examples:
 KNN: 50
 ODIN: 1000 1.4e-3 true cifar10
 ReAct: 90
 LOF: 20
-MDS: 1.4e-3 mean 1 none
+MDS: 1.4e-3 mean 1 none true
 ''')
 parser.set_defaults(argument=True)
 
