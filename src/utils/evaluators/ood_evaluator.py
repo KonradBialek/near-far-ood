@@ -7,6 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from utils.postprocessors import BasePostprocessor
+from utils.postprocessors.utils import get_postprocessor_abbrv
 
 from .base_evaluator import BaseEvaluator
 from .metrics import compute_all_metrics
@@ -95,7 +96,11 @@ class OODEvaluator(BaseEvaluator):
                 subnet.eval()
         else:
             net.eval()
-        net_name = type(net).__name__
+        net_name = 'resnet18' if type(net).__name__ == 'ResNet18_32x32' else 'unknown_net'
+        postprocessor_name = get_postprocessor_abbrv(type(postprocessor).__name__)
+        if postprocessor_name in ['odin', 'mds']:
+            if not getattr(postprocessor, 'preprocessing'):
+                postprocessor_name = postprocessor_name + '_2'
         base_dataset_name = list(data_loader.keys())[0].split('-')[0]
         datasets = []
         for dataset_name, dataloader in data_loader.items():
@@ -108,7 +113,7 @@ class OODEvaluator(BaseEvaluator):
 
             datasets.append(dataset_name.split('-')[1])
             ood_metrics, data = compute_all_metrics(ood_conf, ood_gt, ood_pred)
-            base = f'{net_name}-{base_dataset_name}-{datasets[-1]}'
+            base = f'{net_name}-{postprocessor_name}-{base_dataset_name}-{datasets[-1]}'
             self._save_csv(ood_metrics, base=base)
             metrics_list.append(ood_metrics)
             os.makedirs('./features', exist_ok=True)
@@ -119,7 +124,7 @@ class OODEvaluator(BaseEvaluator):
         print('Computing mean metrics...', flush=True)
         metrics_list = np.array(metrics_list)
         metrics_mean = np.mean(metrics_list, axis=0)
-        base = f'{net_name}-{base_dataset_name}-{"-".join(datasets)}'
+        base = f'{net_name}-{postprocessor_name}-{base_dataset_name}-{"-".join(datasets)}'
         self._save_csv(metrics=metrics_mean, base=base)
 
     def _save_csv(self, metrics, base):

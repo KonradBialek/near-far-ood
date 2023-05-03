@@ -19,3 +19,16 @@ def get_postprocessor(method, method_args):
     }
 
     return postprocessors[method](method_args)
+
+def get_postprocessor_abbrv(name):
+    postprocessor_abbrv = {
+        'BasePostprocessor': 'msp',
+        'KNNPostprocessor': 'knn',
+        'LocalOutlierFactorPostprocessor': 'lof',
+        'MaxLogitPostprocessor': 'mls',
+        'ODINPostprocessor': 'odin',
+        'ReactPostprocessor': 'react',
+        'MDSPostprocessor': 'mds',
+    }
+
+    return postprocessor_abbrv[name]
