@@ -6,7 +6,8 @@ def compute_all_metrics(conf, label, pred):
     np.set_printoptions(precision=3)
     recall = 0.95
     fpr, thresh = fpr_recall(conf, label, recall)
-    auroc, aupr_in, aupr_out = auc(conf, label)
+    auroc, aupr_in, aupr_out, data = auc(conf, label, pred)
+    # auroc, aupr_in, aupr_out, precision, recall, f1, support, average_precision = auc(conf, label, pred)
 
     ccr_1 = ccr_fpr(conf, 0.1, pred, label)
     ccr_2 = ccr_fpr(conf, 0.01, pred, label)
@@ -14,12 +15,15 @@ def compute_all_metrics(conf, label, pred):
     ccr_4 = ccr_fpr(conf, 0.0001, pred, label)
 
     accuracy = acc(pred, label)
+    best_error, best_delta = detection(conf, label)
 
     results1 = np.array(
-        [fpr, auroc, aupr_in, aupr_out, ccr_4, ccr_3, ccr_2, ccr_1, accuracy])
+        [fpr, auroc, aupr_in, aupr_out, ccr_4, ccr_3, ccr_2, ccr_1, accuracy, best_error, best_delta])
+        # [fpr, auroc, aupr_in, aupr_out, ccr_4, ccr_3, ccr_2, ccr_1, accuracy, precision, recall, f1, support, average_precision, best_error, best_delta])
 
     results = [
-        fpr, auroc, aupr_in, aupr_out, ccr_4, ccr_3, ccr_2, ccr_1, accuracy
+        [fpr, auroc, aupr_in, aupr_out, ccr_4, ccr_3, ccr_2, ccr_1, accuracy, best_error, best_delta], data
+        # fpr, auroc, aupr_in, aupr_out, ccr_4, ccr_3, ccr_2, ccr_1, accuracy, precision, recall, f1, support, average_precision, best_error, best_delta
     ]
 
     return results
@@ -56,10 +60,12 @@ def fpr_recall(conf, label, tpr):
 
 
 # auc
-def auc(conf, label):
+def auc(conf, label, pred):
 
     ind_indicator = np.zeros_like(label)
     ind_indicator[label != -1] = 1
+    # ind_pred = np.zeros_like(pred)
+    # ind_pred[pred != -1] = 1
 
     fpr, tpr, thresholds = metrics.roc_curve(ind_indicator, conf)
 
@@ -73,7 +79,10 @@ def auc(conf, label):
     aupr_in = metrics.auc(recall_in, precision_in)
     aupr_out = metrics.auc(recall_out, precision_out)
 
-    return auroc, aupr_in, aupr_out
+    # precision, recall, f1, support = metrics.precision_recall_fscore_support(ind_indicator, ind_pred)
+    # average_precision = metrics.average_precision_score(ind_indicator, ind_pred)
+    return auroc, aupr_in, aupr_out, {'fpr': fpr, 'tpr': tpr, 'auroc': auroc, 'precision_in': precision_in, 'recall_in': recall_in, 'precision_out': precision_out, 'recall_out': recall_out}
+    # return auroc, aupr_in, aupr_out, precision[1], recall[1], f1[1], support[1], average_precision
 
 
 # ccr_fpr
@@ -95,13 +104,13 @@ def ccr_fpr(conf, fpr, pred, label):
     return ccr
 
 
-def detection(ind_confidences,
-              ood_confidences,
+def detection(conf,
+              label,
               n_iter=100000,
               return_data=False):
     # calculate the minimum detection error
-    Y1 = ood_confidences
-    X1 = ind_confidences
+    Y1 = conf[label == -1] #ood
+    X1 = conf[label != -1] #id
 
     start = np.min([np.min(X1), np.min(Y1)])
     end = np.max([np.max(X1), np.max(Y1)])
@@ -112,8 +121,8 @@ def detection(ind_confidences,
     all_thresholds = []
     all_errors = []
     for delta in np.arange(start, end, gap):
-        tpr = np.sum(np.sum(X1 < delta)) / np.float(len(X1))
-        error2 = np.sum(np.sum(Y1 > delta)) / np.float(len(Y1))
+        tpr = np.sum(np.sum(X1 < delta)) / float(len(X1))
+        error2 = np.sum(np.sum(Y1 > delta)) / float(len(Y1))
         detection_error = (tpr + error2) / 2.0
 
         if return_data:

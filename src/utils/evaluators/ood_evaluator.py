@@ -95,6 +95,9 @@ class OODEvaluator(BaseEvaluator):
                 subnet.eval()
         else:
             net.eval()
+        net_name = type(net).__name__
+        base_dataset_name = list(data_loader.keys())[0].split('-')[0]
+        datasets = []
         for dataset_name, dataloader in data_loader.items():
             print(f'Performing inference on {dataset_name} dataset...',
                     flush=True)
@@ -103,47 +106,68 @@ class OODEvaluator(BaseEvaluator):
 
             print(f'Computing metrics on {dataset_name} dataset...')
 
-            ood_metrics = compute_all_metrics(ood_conf, ood_gt, ood_pred)
-            self._save_csv(ood_metrics, dataset_name=dataset_name)
+            datasets.append(dataset_name.split('-')[1])
+            ood_metrics, data = compute_all_metrics(ood_conf, ood_gt, ood_pred)
+            base = f'{net_name}-{base_dataset_name}-{datasets[-1]}'
+            self._save_csv(ood_metrics, base=base)
             metrics_list.append(ood_metrics)
+            os.makedirs('./features', exist_ok=True)
+            np.savez(f'./features/{base}', fpr=data['fpr'], tpr=data['tpr'],
+                        precision_in=data['precision_in'], recall_in=data['recall_in'],
+                        precision_out=data['precision_out'], recall_out=data['recall_out'])
 
         print('Computing mean metrics...', flush=True)
         metrics_list = np.array(metrics_list)
         metrics_mean = np.mean(metrics_list, axis=0)
-        self._save_csv(metrics_mean, dataset_name='ood')
+        base = f'{net_name}-{base_dataset_name}-{"-".join(datasets)}'
+        self._save_csv(metrics=metrics_mean, base=base)
 
-    def _save_csv(self, metrics, dataset_name):
+    def _save_csv(self, metrics, base):
         [fpr, auroc, aupr_in, aupr_out,
-         ccr_4, ccr_3, ccr_2, ccr_1, accuracy] \
+         ccr_4, ccr_3, ccr_2, ccr_1, accuracy, best_error, best_delta] \
          = metrics
+        #  ccr_4, ccr_3, ccr_2, ccr_1, accuracy, precision, recall, f1, support, average_precision, best_error, best_delta] \
 
         write_content = {
-            'dataset': dataset_name,
-            'FPR@95': '{:.2f}'.format(100 * fpr),
-            'AUROC': '{:.2f}'.format(100 * auroc),
-            'AUPR_IN': '{:.2f}'.format(100 * aupr_in),
-            'AUPR_OUT': '{:.2f}'.format(100 * aupr_out),
-            'CCR_4': '{:.2f}'.format(100 * ccr_4),
-            'CCR_3': '{:.2f}'.format(100 * ccr_3),
-            'CCR_2': '{:.2f}'.format(100 * ccr_2),
-            'CCR_1': '{:.2f}'.format(100 * ccr_1),
-            'ACC': '{:.2f}'.format(100 * accuracy)
+            'base': base,
+            'FPR@95': '{:.6f}'.format(100 * fpr),
+            'AUROC': '{:.6f}'.format(100 * auroc),
+            'AUPR_IN': '{:.6f}'.format(100 * aupr_in),
+            'AUPR_OUT': '{:.6f}'.format(100 * aupr_out),
+            'CCR_4': '{:.6f}'.format(100 * ccr_4),
+            'CCR_3': '{:.6f}'.format(100 * ccr_3),
+            'CCR_2': '{:.6f}'.format(100 * ccr_2),
+            'CCR_1': '{:.6f}'.format(100 * ccr_1),
+            'ACC': '{:.6f}'.format(100 * accuracy),
+            # 'PREC': '{:.2f}'.format(100 * precision),
+            # 'REC': '{:.2f}'.format(100 * recall),
+            # 'F1': '{:.2f}'.format(100 * f1),
+            # 'SUPP': '{:.2f}'.format(100),
+            # 'AVGP': '{:.2f}'.format(100 * average_precision),
+            'ERROR': '{:.6f}'.format(100 * best_error),
+            'DELTA': '{:.6f}'.format(100 * best_delta)
         }
 
         fieldnames = list(write_content.keys())
 
         # print ood metric results
-        print('FPR@95: {:.2f}, AUROC: {:.2f}'.format(100 * fpr, 100 * auroc),
+        print('FPR@95: {:.6f}, AUROC: {:.6f}'.format(100 * fpr, 100 * auroc),
               end=' ',
               flush=True)
-        print('AUPR_IN: {:.2f}, AUPR_OUT: {:.2f}'.format(
+        print('AUPR_IN: {:.6f}, AUPR_OUT: {:.6f}'.format(
             100 * aupr_in, 100 * aupr_out),
               flush=True)
-        print('CCR: {:.2f}, {:.2f}, {:.2f}, {:.2f},'.format(
+        print('CCR: {:.6f}, {:.6f}, {:.6f}, {:.6f},'.format(
             ccr_4 * 100, ccr_3 * 100, ccr_2 * 100, ccr_1 * 100),
               end=' ',
               flush=True)
-        print('ACC: {:.2f}'.format(accuracy * 100), flush=True)
+        print('ACC: {:.6f},'.format(accuracy * 100), end=' ', flush=True)
+        # print('PREC: {:.2f},'.format(precision * 100), end=' ', flush=True)
+        # print('REC: {:.2f},'.format(recall * 100), flush=True)
+        # print('F1: {:.2f},'.format(f1 * 100), end=' ', flush=True)
+        # print('SUPP: {:.2f},'.format(support), end=' ', flush=True)
+        # print('AVGP: {:.2f},'.format(average_precision * 100), end=' ', flush=True)
+        print('ERROR: {:.6f}, DELTA: {:.6f}'.format(best_error * 100, best_delta * 100), flush=True)
         print(u'\u2500' * 70, flush=True)
 
         csv_path = os.path.join('features', 'ood.csv')
