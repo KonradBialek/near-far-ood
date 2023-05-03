@@ -288,12 +288,12 @@ length_dict = {'cifar10': 10000,
 def getNN(nn: str, dataset: str):
     if dataset != 'tin':
         model = torch.hub.load('pytorch/vision:v0.14.0', nn) 
-        numFetures = num_features_dict[nn]
+        numFeatures = num_features_dict[nn]
         numClasses = num_classes_dict[dataset]
         if nn.startswith('resnet'):
-            model.fc = torch.nn.Linear(numFetures, numClasses)
+            model.fc = torch.nn.Linear(numFeatures, numClasses)
         elif nn.startswith('densenet'):
-            model.classifier = torch.nn.Linear(numFetures, numClasses)
+            model.classifier = torch.nn.Linear(numFeatures, numClasses)
     else:
         if nn.startswith('resnet18'):
             model = torch.hub.load('pytorch/vision:v0.14.0', nn, weights='ResNet18_Weights.IMAGENET1K_V1') 
@@ -381,17 +381,17 @@ def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str, use
     model.eval()
     return model
 
-def save_scores(fetures, logits, labels, save_name, save_dir):
+def save_scores(features, logits, labels, save_name, save_dir):
     os.makedirs(save_dir, exist_ok=True)
     np.savez(os.path.join(save_dir, save_name),
-                fetures=fetures,
+                features=features,
                 logits=logits,
                 labels=labels)
     
-def save_scores_(fetures, labels, save_name, save_dir):
+def save_scores_(features, labels, save_name, save_dir):
     os.makedirs(save_dir, exist_ok=True)
     np.savez(os.path.join(save_dir, save_name),
-                fetures=fetures,
+                features=features,
                 labels=labels)
     
 def getLastLayers(model, data):
@@ -406,14 +406,8 @@ def get_dataloader(dataset_config, preprocessor_args):
         data_aux_preprocessor = TestStandardPreProcessor(preprocessor_args)
         train = True if split == 'train' else False
         transform = preprocessor if split == 'train' else data_aux_preprocessor
-        if dataset_config['name'] == 'cifar10':
-            dataset = torchvision.datasets.CIFAR10(root=dataset_config['data_dir'], train=train, download=True, transform=transform)
+        dataset = getDataset_(dataset_config['name'], split, dataset_config, transform)
 
-        elif dataset_config['name'] == 'mnist':
-            dataset = torchvision.datasets.MNIST(root=dataset_config['data_dir'], train=train, download=True, transform=transform)
-        else:
-            raise NotImplementedError
-        
         sampler = None
 
         dataloader = DataLoader(dataset,

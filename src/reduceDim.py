@@ -13,7 +13,7 @@ Loops over .npz files in ./features directory. Reduces dimensions of extracted f
 '''
 n_components = 50 
 
-for file in os.listdir('./features/'):
+for file in os.listdir('./features'):
     if file.endswith('.npz'):
         features = np.load('./features/'+file)['features']
         logits = np.load('./features/'+file)['logits']
@@ -26,8 +26,6 @@ for file in os.listdir('./features/'):
                     features = pca.fit_transform(features)
                     features = preprocessing.normalize(features, norm='l2')
 
-                    logits = preprocessing.normalize(logits, norm='l2')
-                    logits = pca.fit_transform(logits)
                     logits = preprocessing.normalize(logits, norm='l2')
 
                 tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=2000)

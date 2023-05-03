@@ -2,7 +2,7 @@ import argparse
 from warnings import warn
 from utils.extractFeatures import extractFeatures
 from utils.train import train
-from utils.measure import measure, measure_
+from utils.measure import measure
 
 
 # model_options = ['resnet18', 'resnet34', 'renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2', 'densenet121', 'densenet161', 'densenet169', 'densenet201']
@@ -79,14 +79,11 @@ def main():
             extractFeatures(nn=args.nn, datasets=args.process_datasets, checkpoint=args.checkpoint)
         else:
             print('Provide checkpoint file.')
-    elif args.mode == 'measure':
-            if args.method in []:
-                measure(method=args.method, method_args=args.method_args)
-            else:
-                if args.checkpoint is not None:
-                    measure_(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args, checkpoint=args.checkpoint)
-                else:
-                    print('Provide checkpoint file.')
+    elif args.mode in ['measure', 'measure+']:
+        if args.checkpoint is not None:
+            measure(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args, checkpoint=args.checkpoint, mode=args.mode)
+        else:
+            print('Provide checkpoint file.')
     else:
          warn("Wrong mode.")
 
