@@ -1,4 +1,5 @@
 import os
+import random
 import shutil
 from typing import List
 from warnings import warn
@@ -460,7 +461,14 @@ def get_ood_dataloader(ood_config, preprocessor_args, lof=False):
                 len_.append(len(testset))
             len_ = min(len_)
             for i in range(len(testset_)):
-                testset_[i] = Subset(testset_[i], list(range(len_)))
+                if len(testset_[i]) > len_:
+                    nums = set()
+                    while len(nums) < len_:
+                        nums.add(random.randrange(len(testset_[i])))
+                    nums = list(nums)
+                else:
+                    nums = list(range(len_))
+                testset_[i] = Subset(testset_[i], nums)
             testset = torch.utils.data.ConcatDataset(testset_) # it changes -1 to 1 for ID part of datase
             if lof:
                 testset = tuple((testset[i][0], -1) if i >= len_ else (testset[i][0], 1) for i in range(len(testset)))

@@ -116,8 +116,8 @@ class OODEvaluator(BaseEvaluator):
             base = f'{net_name}-{postprocessor_name}-{base_dataset_name}-{datasets[-1]}'
             self._save_csv(ood_metrics, base=base)
             metrics_list.append(ood_metrics)
-            os.makedirs('./features', exist_ok=True)
-            np.savez(f'./features/{base}', fpr=data['fpr'], tpr=data['tpr'],
+            os.makedirs(f'./features/{net_name}-{postprocessor_name}-{base_dataset_name}', exist_ok=True)
+            np.savez(f'./features/{net_name}-{postprocessor_name}-{base_dataset_name}/{datasets[-1]}', fpr=data['fpr'], tpr=data['tpr'],
                         precision_in=data['precision_in'], recall_in=data['recall_in'],
                         precision_out=data['precision_out'], recall_out=data['recall_out'])
 
@@ -150,7 +150,7 @@ class OODEvaluator(BaseEvaluator):
             # 'SUPP': '{:.2f}'.format(100),
             # 'AVGP': '{:.2f}'.format(100 * average_precision),
             'ERROR': '{:.6f}'.format(100 * best_error),
-            'DELTA': '{:.6f}'.format(100 * best_delta)
+            'DELTA': '{:.6f}'.format(best_delta)
         }
 
         fieldnames = list(write_content.keys())
@@ -172,7 +172,7 @@ class OODEvaluator(BaseEvaluator):
         # print('F1: {:.2f},'.format(f1 * 100), end=' ', flush=True)
         # print('SUPP: {:.2f},'.format(support), end=' ', flush=True)
         # print('AVGP: {:.2f},'.format(average_precision * 100), end=' ', flush=True)
-        print('ERROR: {:.6f}, DELTA: {:.6f}'.format(best_error * 100, best_delta * 100), flush=True)
+        print('ERROR: {:.6f}, DELTA: {:.6f}'.format(best_error * 100, best_delta), flush=True)
         print(u'\u2500' * 70, flush=True)
 
         csv_path = os.path.join('features', 'ood.csv')
