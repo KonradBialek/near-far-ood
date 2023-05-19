@@ -84,7 +84,7 @@ def measure(nn: str, method: str, datasets: list, method_args: list, checkpoint 
         evaluator.eval_ood_(model, ood_loader,
                             postprocessor)
 
-    if mode == 'measure+':
+    if mode == 'extract':
         global features_, logits_, labels_
         features_, logits_, labels_ = [], [], []
         os.makedirs('./features/', exist_ok=True)

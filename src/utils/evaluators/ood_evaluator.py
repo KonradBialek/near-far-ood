@@ -90,7 +90,7 @@ class OODEvaluator(BaseEvaluator):
 
     def eval_ood_(self, net: nn.Module, data_loader: Dict[str, DataLoader],
                  postprocessor: BasePostprocessor):
-        metrics_list = []
+        metrics_list, near_list, far_list = [], [], []
         if type(net) is dict:
             for subnet in net.values():
                 subnet.eval()
@@ -116,15 +116,41 @@ class OODEvaluator(BaseEvaluator):
             base = f'{net_name}-{postprocessor_name}-{base_dataset_name}-{datasets[-1]}'
             self._save_csv(ood_metrics, base=base)
             metrics_list.append(ood_metrics)
+            if base_dataset_name == 'cifar10':
+                if datasets[-1] in ['cifar100', 'tin']:
+                    near_list.append(ood_metrics)
+                else:
+                    far_list.append(ood_metrics)
+
+            elif base_dataset_name == 'mnist':
+                if datasets[-1] in ['notmnist', 'fashionmnist']:
+                    near_list.append(ood_metrics)
+                else:
+                    far_list.append(ood_metrics)
+
             os.makedirs(f'./features/{net_name}-{postprocessor_name}-{base_dataset_name}', exist_ok=True)
             np.savez(f'./features/{net_name}-{postprocessor_name}-{base_dataset_name}/{datasets[-1]}', fpr=data['fpr'], tpr=data['tpr'],
                         precision_in=data['precision_in'], recall_in=data['recall_in'],
                         precision_out=data['precision_out'], recall_out=data['recall_out'])
+            
 
         print('Computing mean metrics...', flush=True)
+        print('Computing mean near-OOD metrics...', flush=True)
+        near_list = np.array(near_list)
+        near_mean = np.mean(near_list, axis=0)
+        base = f'{net_name}-{postprocessor_name}-{base_dataset_name}-near'
+        self._save_csv(metrics=near_mean, base=base)
+
+        print('Computing mean far-OOD metrics...', flush=True)
+        far_list = np.array(far_list)
+        far_mean = np.mean(far_list, axis=0)
+        base = f'{net_name}-{postprocessor_name}-{base_dataset_name}-far'
+        self._save_csv(metrics=far_mean, base=base)
+
+        print('Computing mean all metrics...', flush=True)
         metrics_list = np.array(metrics_list)
         metrics_mean = np.mean(metrics_list, axis=0)
-        base = f'{net_name}-{postprocessor_name}-{base_dataset_name}-{"-".join(datasets)}'
+        base = f'{net_name}-{postprocessor_name}-{base_dataset_name}-mean'
         self._save_csv(metrics=metrics_mean, base=base)
 
     def _save_csv(self, metrics, base):
@@ -135,22 +161,22 @@ class OODEvaluator(BaseEvaluator):
 
         write_content = {
             'base': base,
-            'FPR@95': '{:.6f}'.format(100 * fpr),
-            'AUROC': '{:.6f}'.format(100 * auroc),
-            'AUPR_IN': '{:.6f}'.format(100 * aupr_in),
-            'AUPR_OUT': '{:.6f}'.format(100 * aupr_out),
-            'CCR_4': '{:.6f}'.format(100 * ccr_4),
-            'CCR_3': '{:.6f}'.format(100 * ccr_3),
-            'CCR_2': '{:.6f}'.format(100 * ccr_2),
-            'CCR_1': '{:.6f}'.format(100 * ccr_1),
-            'ACC': '{:.6f}'.format(100 * accuracy),
+            'FPR@95': '{}'.format(100 * fpr),
+            'AUROC': '{}'.format(100 * auroc),
+            'AUPR_IN': '{}'.format(100 * aupr_in),
+            'AUPR_OUT': '{}'.format(100 * aupr_out),
+            'CCR_4': '{}'.format(100 * ccr_4),
+            'CCR_3': '{}'.format(100 * ccr_3),
+            'CCR_2': '{}'.format(100 * ccr_2),
+            'CCR_1': '{}'.format(100 * ccr_1),
+            'ACC': '{}'.format(100 * accuracy),
             # 'PREC': '{:.2f}'.format(100 * precision),
             # 'REC': '{:.2f}'.format(100 * recall),
             # 'F1': '{:.2f}'.format(100 * f1),
             # 'SUPP': '{:.2f}'.format(100),
             # 'AVGP': '{:.2f}'.format(100 * average_precision),
-            'ERROR': '{:.6f}'.format(100 * best_error),
-            'DELTA': '{:.6f}'.format(best_delta)
+            'ERROR': '{}'.format(100 * best_error),
+            'DELTA': '{}'.format(best_delta)
         }
 
         fieldnames = list(write_content.keys())

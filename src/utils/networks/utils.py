@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
-from mmcls.apis import init_model
 
 from .densenet import DenseNet3
 from .resnet18_32x32 import ResNet18_32x32

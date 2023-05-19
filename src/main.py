@@ -10,14 +10,14 @@ model_options = ['resnet18', 'densenet121']
 OOD_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
 train_options = ['cifar10', 'cifar100', 'svhn', 'tin', 'mnist', 'fashionmnist']
 method_options = ['knn', 'odin', 'msp', 'mls', 'react', 'lof', 'mds']
-mode_options = ['train', 'extract', 'measure']
+mode_options = ['extract', 'measure']
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 # common args
 parser.add_argument('-n', '--nn', default="resnet18", type=str, choices=model_options,
                     help='(str) neural network (name in pytorch/vision:v0.14.0)')
 parser.add_argument('-M', '--mode', default="measure", type=str, choices=mode_options,
-                    help='(str) "train", "measure" or "extract')
+                    help='(str) "measure" or "extract')
 
 # train args
 parser.add_argument('-t', '--train_dataset', default="cifar10", type=str, choices=train_options,
@@ -74,12 +74,12 @@ def main():
     args = parser.parse_args()
     if args.mode == 'train':
         train(nn=args.nn, dataset=args.train_dataset, checkpoint=args.checkpoint, n_holes=args.n_holes, length=args.length, la_steps=args.la_steps, la_alpha=args.la_alpha)
-    elif args.mode == 'extract':
+    elif args.mode == '':
         if args.checkpoint is not None:
             extractFeatures(nn=args.nn, datasets=args.process_datasets, checkpoint=args.checkpoint)
         else:
             print('Provide checkpoint file.')
-    elif args.mode in ['measure', 'measure+']:
+    elif args.mode in ['measure', 'extract']:
         if args.checkpoint is not None:
             measure(nn=args.nn, method=args.method, datasets=args.process_datasets, method_args=args.method_args, checkpoint=args.checkpoint, mode=args.mode)
         else:
