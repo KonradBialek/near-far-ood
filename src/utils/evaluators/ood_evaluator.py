@@ -131,7 +131,9 @@ class OODEvaluator(BaseEvaluator):
             os.makedirs(f'./features/{net_name}-{postprocessor_name}-{base_dataset_name}', exist_ok=True)
             np.savez(f'./features/{net_name}-{postprocessor_name}-{base_dataset_name}/{datasets[-1]}', fpr=data['fpr'], tpr=data['tpr'],
                         precision_in=data['precision_in'], recall_in=data['recall_in'],
-                        precision_out=data['precision_out'], recall_out=data['recall_out'])
+                        precision_out=data['precision_out'], recall_out=data['recall_out'], distance=ood_conf[len(ood_conf)//2:])
+            if not os.path.isfile(f'./features/{net_name}-{postprocessor_name}-{base_dataset_name}/{dataset_name.split("-")[0]}.npz'):
+                np.savez(f'./features/{net_name}-{postprocessor_name}-{base_dataset_name}/{dataset_name.split("-")[0]}', distance=ood_conf[:len(ood_conf)//2])
             
 
         print('Computing mean metrics...', flush=True)

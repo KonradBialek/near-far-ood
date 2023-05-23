@@ -21,19 +21,23 @@ def extract(model, testloader: torch.utils.data.DataLoader, use_gpu: bool, i: in
         ID (bool) If in-distribution dataset.
         i (int): Id to set labels for OoD dataset.
     '''
-    features, logits = [], []
-    for images, _ in testloader:
+    features, logits, labels = [], [], []
+    for images, labels__ in testloader:
         if use_gpu: 
             images = images.cuda()
         features__, logits__ = getLastLayers(model, images)
         features__ = features__.cpu().detach().numpy()
         logits__ = logits__.cpu().detach().numpy()
         features.append(features__)
+        labels.append(labels__)
         logits.append(logits__)
 
     features = np.concatenate(features, axis=0)
     logits = np.concatenate(logits, axis=0)
-    labels = i * np.ones(len(features))
+    if i > 0:
+        labels = -i * np.ones(len(features))
+    else:
+        labels = np.concatenate(labels, axis=0)
         
     if save_name is not None:
         save_scores(features, logits, labels, save_name=save_name, save_dir='./features')
