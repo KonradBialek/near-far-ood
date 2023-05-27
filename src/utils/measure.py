@@ -47,39 +47,21 @@ def extract(model, testloader: torch.utils.data.DataLoader, use_gpu: bool, i: in
         labels_.append(labels)
 
 def measure(nn: str, method: str, datasets: list, method_args: list, checkpoint = None, mode='measure'):
-    print(method)
-    if method == 'mds':
-        method_args.append(num_classes_dict[datasets[0]])
     use_gpu = isCuda()
-    method_args.append(use_gpu)
     model = loadNNWeights(nn, checkpoint, both_layers=bothLayers(method=method), dataset=datasets[0], use_gpu=use_gpu)
 
     if mode == 'measure':
+        print(method)
+        if method == 'mds':
+            method_args.append(num_classes_dict[datasets[0]])
+        method_args.append(use_gpu)
         evaluator = get_evaluator(eval='ood', eval_args=[use_gpu])
         postprocessor = get_postprocessor(method=method, method_args=method_args)
 
         dataloader_args = {'split_names':  ['train', 'val', 'test'], 'name': datasets[0], 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/images_classic'}
         preprocessor_args = {'name': 'base', 'image_size': getShape(datasets[0])[0], 'interpolation': 'bilinear', 'normalization_type': datasets[0]}
         id_loader = get_dataloader(dataloader_args, preprocessor_args)
-        # if datasets[0] == 'cifar10':
-        #     nearood, farood = ['cifar100', 'tin'], ['mnist', 'fashionmnist', 'notmnist', 'svhn', 'dtd']
-        # if datasets[0] == 'mnist':
-        #     nearood, farood = ['fashionmnist', 'notmnist'], ['cifar10', 'cifar100', 'svhn', 'tin', 'dtd', 'places365']
-        # dataloader_args = {'split_names':  ['val', 'nearood', 'farood'], 'nearood': nearood, 'farood': farood, 'name': f'{datasets[0]}', 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/images_classic'}
-        # ood_loader = get_ood_dataloader(dataloader_args, preprocessor_args)
         postprocessor.setup(net=model, trainloader=id_loader)
-
-        # # start calculating accuracy
-        # print('\nStart evaluation...', flush=True)
-        # evaluator.eval_acc(model, id_loader['test'],
-        #                    postprocessor)
-        # print('\nAccuracy {:.2f}%'.format(100 * acc_metrics['acc']),
-        #         flush=True)
-        # print(u'\u2500' * 70, flush=True)
-
-        # # start evaluating ood detection methods
-        # evaluator.eval_ood(model, id_loader, ood_loader, postprocessor)
-        # print('Completed!', flush=True)
 
         dataloader_args = {'split_names': datasets, 'name': datasets[0], 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/images_classic'}
         ood_loader = get_ood_dataloader(dataloader_args, preprocessor_args, lof=True if method == 'lof' else False)

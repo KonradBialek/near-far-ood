@@ -172,11 +172,6 @@ class OODEvaluator(BaseEvaluator):
             'CCR_2': '{}'.format(100 * ccr_2),
             'CCR_1': '{}'.format(100 * ccr_1),
             'ACC': '{}'.format(100 * accuracy),
-            # 'PREC': '{:.2f}'.format(100 * precision),
-            # 'REC': '{:.2f}'.format(100 * recall),
-            # 'F1': '{:.2f}'.format(100 * f1),
-            # 'SUPP': '{:.2f}'.format(100),
-            # 'AVGP': '{:.2f}'.format(100 * average_precision),
             'ERROR': '{}'.format(100 * best_error),
             'DELTA': '{}'.format(best_delta)
         }
@@ -195,11 +190,6 @@ class OODEvaluator(BaseEvaluator):
               end=' ',
               flush=True)
         print('ACC: {:.6f},'.format(accuracy * 100), end=' ', flush=True)
-        # print('PREC: {:.2f},'.format(precision * 100), end=' ', flush=True)
-        # print('REC: {:.2f},'.format(recall * 100), flush=True)
-        # print('F1: {:.2f},'.format(f1 * 100), end=' ', flush=True)
-        # print('SUPP: {:.2f},'.format(support), end=' ', flush=True)
-        # print('AVGP: {:.2f},'.format(average_precision * 100), end=' ', flush=True)
         print('ERROR: {:.6f}, DELTA: {:.6f}'.format(best_error * 100, best_delta), flush=True)
         print(u'\u2500' * 70, flush=True)
 
