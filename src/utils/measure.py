@@ -34,9 +34,9 @@ def extract(model, testloader: torch.utils.data.DataLoader, use_gpu: bool, i: in
 
     features = np.concatenate(features, axis=0)
     logits = np.concatenate(logits, axis=0)
-    if i > 0:
+    if i > 0: # for OOD
         labels = -i * np.ones(len(features))
-    else:
+    else: # for ID
         labels = np.concatenate(labels, axis=0)
         
     if save_name is not None:
@@ -52,10 +52,10 @@ def measure(nn: str, method: str, datasets: list, method_args: list, checkpoint 
 
     if mode == 'measure':
         print(method)
+        evaluator = get_evaluator(eval='ood', eval_args=[use_gpu])
         if method == 'mds':
             method_args.append(num_classes_dict[datasets[0]])
         method_args.append(use_gpu)
-        evaluator = get_evaluator(eval='ood', eval_args=[use_gpu])
         postprocessor = get_postprocessor(method=method, method_args=method_args)
 
         dataloader_args = {'split_names':  ['train', 'val', 'test'], 'name': datasets[0], 'num_classes': num_classes_dict[datasets[0]], 'data_dir': './data/images_classic'}

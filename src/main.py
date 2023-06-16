@@ -6,7 +6,7 @@ from utils.measure import measure
 
 
 # model_options = ['resnet18', 'resnet34', 'renset50', 'renset101', 'renset152', 'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d', 'wide_resnet50_2', 'wide_resnet101_2', 'densenet121', 'densenet161', 'densenet169', 'densenet201']
-model_options = ['resnet18', 'densenet121']
+model_options = ['resnet18', 'densenet121', 'lenet']
 OOD_options = ['cifar10', 'cifar100', 'dtd', 'places365', 'svhn', 'tin', 'mnist', 'fashionmnist', 'notmnist']
 train_options = ['cifar10', 'cifar100', 'svhn', 'tin', 'mnist', 'fashionmnist']
 method_options = ['knn', 'odin', 'msp', 'mls', 'react', 'lof', 'mds']

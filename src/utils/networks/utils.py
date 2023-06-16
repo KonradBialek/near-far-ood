@@ -6,6 +6,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 
+from .lenet import LeNet
 from .densenet import DenseNet3
 from .resnet18_32x32 import ResNet18_32x32
 
@@ -22,6 +23,8 @@ def get_network(num_classes, name, use_gpu, checkpoint = None):
                         bottleneck=True,
                         dropRate=0.0,
                         num_classes=num_classes)
+    elif name == 'lenet':
+        net = LeNet(num_classes=num_classes, num_channel=3)
     else:
         raise Exception('Unexpected Network Architecture!')
 

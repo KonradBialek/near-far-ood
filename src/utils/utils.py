@@ -333,6 +333,7 @@ def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str, use
     if dataset in ['cifar10', 'mnist']:
         model = get_network(num_classes=num_classes_dict[dataset], name=nn, use_gpu=use_gpu, checkpoint=path)
     else:
+        raise NotImplementedError('should not be executed')
         ckpt = torch.load(path)
         model = getNN(nn, dataset)
     if both_layers:
@@ -346,7 +347,8 @@ def loadNNWeights(nn: str, checkpoint: str, both_layers: bool, dataset: str, use
     #         raise NotImplementedError("Not known.")
     if dataset in ['cifar10', 'mnist']:
         return model
-
+    
+    raise NotImplementedError('should not be executed')
     if use_gpu:
         model = model.cuda()
     if dataset != 'tin':
@@ -455,22 +457,22 @@ def get_ood_dataloader(ood_config, preprocessor_args, lof=False):
         for j in range(1, len(ood_config['split_names'])):
             sets = [ood_config['split_names'][0], ood_config['split_names'][j]]
             testset_, len_ = [], []
-            for dataset in sets:
+            for dataset in sets: # for each pair of datasets
                 testset = getDataset_(dataset_name=dataset, split='val', ood_config=ood_config, transform=transform, target_transform=transforms.Lambda(lambda x: torch.Tensor(x)))
                 testset_.append(testset)
                 len_.append(len(testset))
-            len_ = min(len_)
+            len_ = min(len_) # using length of shorter dataset
             for i in range(len(testset_)):
                 if len(testset_[i]) > len_:
                     nums = set()
-                    while len(nums) < len_:
+                    while len(nums) < len_: # draw samples from longer one
                         nums.add(random.randrange(len(testset_[i])))
                     nums = list(nums)
                 else:
                     nums = list(range(len_))
                 testset_[i] = Subset(testset_[i], nums)
-            testset = torch.utils.data.ConcatDataset(testset_) # it changes -1 to 1 for ID part of datase
-            if lof:
+            testset = torch.utils.data.ConcatDataset(testset_) # join datasets
+            if lof: # set labels
                 testset = tuple((testset[i][0], -1) if i >= len_ else (testset[i][0], 1) for i in range(len(testset)))
             else:
                 testset = tuple((testset[i][0], -1) if i >= len_ else testset[i] for i in range(len(testset)))

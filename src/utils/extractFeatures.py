@@ -17,14 +17,16 @@ def extract(model: ResNet or DenseNet, testloader: torch.utils.data.DataLoader, 
         ID (bool) If in-distribution dataset.
         i (int): Id to set labels for OoD dataset.
     '''
-    features, logits = [], []
+    features_, logits_ = [], []
     for images, _ in testloader:
         if use_gpu: 
             images = images.cuda()
         features, logits = getLastLayers(model, images)
+        features_.append(features.cpu().detach())
+        logits_.append(logits.cpu().detach())
 
-    features = torch.cat(features)
-    logits = torch.cat(logits)
+    features = torch.cat(features_)
+    logits = torch.cat(logits_)
     features = features.numpy()
     logits = logits.numpy()
     labels = i * np.ones(len(features))

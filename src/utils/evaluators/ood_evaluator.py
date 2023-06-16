@@ -96,7 +96,13 @@ class OODEvaluator(BaseEvaluator):
                 subnet.eval()
         else:
             net.eval()
-        net_name = 'resnet18' if type(net).__name__ == 'ResNet18_32x32' else 'unknown_net'
+        net_name = type(net).__name__
+        if  net_name == 'ResNet18_32x32':
+            net_name = 'resnet18'
+        elif  net_name == 'LeNet':
+            net_name = 'lenet'
+        else:
+            net_name = 'unknown_net'
         postprocessor_name = get_postprocessor_abbrv(type(postprocessor).__name__)
         if postprocessor_name in ['odin', 'mds']:
             if not getattr(postprocessor, 'preprocessing'):
