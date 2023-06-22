@@ -1,1 +1,1 @@
-# mgr2023-near-far-ood
+# near-far-ood
