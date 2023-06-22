@@ -35,8 +35,8 @@ class BaseEvaluator:
                               position=0,
                               leave=True):
                 # prepare data
-                data = batch['data'].cuda()
-                target = batch['label'].cuda()
+                data = batch[0].cuda()
+                target = batch[1].cuda()
 
                 # forward
                 output = net(data)

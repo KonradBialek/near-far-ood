@@ -27,7 +27,7 @@ class LeNet(nn.Module):
                       kernel_size=5,
                       stride=1), nn.ReLU())
 
-        self.classifier1 = nn.Linear(in_features=120, out_features=84)
+        self.classifier1 = nn.Linear(in_features=480, out_features=84) # 480 for cifar10, 120 for mnist
         self.relu = nn.ReLU()
         self.fc = nn.Linear(in_features=84, out_features=num_classes)
 

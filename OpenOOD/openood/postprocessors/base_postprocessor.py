@@ -23,8 +23,8 @@ class BasePostprocessor:
     def inference(self, net: nn.Module, data_loader: DataLoader):
         pred_list, conf_list, label_list = [], [], []
         for batch in data_loader:
-            data = batch['data'].cuda()
-            label = batch['label'].cuda()
+            data = batch[0].cuda()
+            label = batch[1].cuda()
             pred, conf = self.postprocess(net, data)
             for idx in range(len(data)):
                 pred_list.append(pred[idx].cpu().tolist())

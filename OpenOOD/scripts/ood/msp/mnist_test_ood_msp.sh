@@ -19,5 +19,8 @@ configs/pipelines/test/test_ood.yml \
 configs/preprocessors/base_preprocessor.yml \
 configs/postprocessors/msp.yml \
 --num_workers 8 \
---network.checkpoint 'results/checkpoints/mnist_lenet_acc98.50.ckpt' \
+--network.checkpoint 'results/checkpoints/best-mnist-lenet.ckpt' \
 --mark 0
+
+# configs/networks/resnet18_32x32.yml \
+# --network.checkpoint 'results/checkpoints/best-mnist-resnet18.ckpt' \

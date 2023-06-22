@@ -50,8 +50,8 @@ class BaseTrainer:
                                leave=True,
                                disable=not comm.is_main_process()):
             batch = next(train_dataiter)
-            data = batch['data'].cuda()
-            target = batch['label'].cuda()
+            data = batch[0].cuda()
+            target = batch[1].cuda()
 
             # forward
             logits_classifier = self.net(data)
